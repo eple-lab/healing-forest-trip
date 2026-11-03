@@ -141,6 +141,22 @@ export function MultiplayerBridge({ enabled = true }: { enabled?: boolean }) {
       }
     };
 
+    /**
+     * 브라우저 탭을 닫거나 컴퓨터가 꺼질 때 서버 접속자 목록에서 즉시 빠지도록
+     * pagehide 시점에 소켓을 닫는다. (b/bfcache 복원 시 pageshow 에서 다시 연결)
+     * 전원 차단처럼 close 패킷이 유실되는 경우는 서버 ping 타임아웃이 정리한다.
+     */
+    const onPageHide = () => {
+      const active = getSocket();
+      if (active.connected || active.active) active.disconnect();
+    };
+
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (!event.persisted) return;
+      const active = getSocket();
+      if (!active.connected) active.connect();
+    };
+
     socket.on('connect', onConnect);
     socket.on('disconnect', onDisconnect);
     socket.on('connect_error', onConnectError);
@@ -154,6 +170,8 @@ export function MultiplayerBridge({ enabled = true }: { enabled?: boolean }) {
     socket.on('chat:denied', onChatDenied);
     socket.on('fire:full', onFireFull);
     socket.on('profile', onProfile);
+    window.addEventListener('pagehide', onPageHide);
+    window.addEventListener('pageshow', onPageShow);
 
     if (!socket.connected) socket.connect();
 
@@ -188,6 +206,8 @@ export function MultiplayerBridge({ enabled = true }: { enabled?: boolean }) {
       socket.off('chat:denied', onChatDenied);
       socket.off('fire:full', onFireFull);
       socket.off('profile', onProfile);
+      window.removeEventListener('pagehide', onPageHide);
+      window.removeEventListener('pageshow', onPageShow);
       disconnectSocket();
     };
   }, [enabled]);

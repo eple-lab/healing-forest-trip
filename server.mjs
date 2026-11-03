@@ -98,9 +98,11 @@ const io = new Server(server, {
   path: '/socket.io',
   serveClient: false,
   maxHttpBufferSize: 16 * 1024,
-  pingInterval: 20_000,
-  pingTimeout: 15_000,
-  connectTimeout: 10_000,
+  // 브라우저 강제 종료/전원 차단도 최대 ~20초 안에 감지해 접속자 목록에서 제거한다.
+  // (Socket.IO 기본값 25s/20s → 12s/8s)
+  pingInterval: 12_000,
+  pingTimeout: 8_000,
+  connectTimeout: 8_000,
   cors: {
     origin: Array.from(allowedOrigins),
     credentials: true,
