@@ -111,6 +111,10 @@ healing-forest-trip/
 | [docs/13-testing.md](docs/13-testing.md) | 검증 체크리스트 |
 | [docs/14-troubleshooting.md](docs/14-troubleshooting.md) | 문제 해결 |
 | [docs/15-contributing.md](docs/15-contributing.md) | 기여 규칙 |
+| [docs/16-test-plan.md](docs/16-test-plan.md) | 테스트 계획 |
+| [docs/17-security-test-plan.md](docs/17-security-test-plan.md) | 시큐리티 테스트 계획 |
+| [docs/18-test-report.md](docs/18-test-report.md) | 테스트 결과 보고 |
+| [docs/19-security-report.md](docs/19-security-report.md) | 보안 결과 보고 |
 
 ## 보안 요약
 
