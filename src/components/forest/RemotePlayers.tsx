@@ -15,6 +15,7 @@ import { useGame } from '@/store/game';
 import { playerState } from '@/lib/player-state';
 import type { PublicPlayer } from '@/types/game';
 import { plaidTexture } from '@/lib/textures';
+import { characterById } from '@/lib/characters';
 
 const MAX_VISIBLE = 12;
 const VISIBLE_DISTANCE = 72;
@@ -39,9 +40,24 @@ const pantsMat = new THREE.MeshStandardMaterial({ color: '#4e5f63', roughness: 0
 const shoeMat = new THREE.MeshStandardMaterial({ color: '#3b3128', roughness: 1 });
 const packMat = new THREE.MeshStandardMaterial({ color: '#7c5f3f', roughness: 1 });
 const packFlapMat = new THREE.MeshStandardMaterial({ color: '#6a4e33', roughness: 1 });
-const skinMat = new THREE.MeshStandardMaterial({ color: '#e2b48f', roughness: 0.85 });
-const handMat = new THREE.MeshStandardMaterial({ color: '#e2b48f', roughness: 0.9 });
-const hairMat = new THREE.MeshStandardMaterial({ color: '#3a2c22', roughness: 1 });
+/* 캐릭터별 피부/머리카락/몸통 재질은 색상으로 공유한다. */
+const skins = new Map<string, THREE.MeshStandardMaterial>();
+function skinMaterial(color: string) {
+  const cached = skins.get(color);
+  if (cached) return cached;
+  const created = new THREE.MeshStandardMaterial({ color, roughness: 0.85 });
+  skins.set(color, created);
+  return created;
+}
+
+const hairMats = new Map<string, THREE.MeshStandardMaterial>();
+function hairMaterial(color: string) {
+  const cached = hairMats.get(color);
+  if (cached) return cached;
+  const created = new THREE.MeshStandardMaterial({ color, roughness: 1 });
+  hairMats.set(color, created);
+  return created;
+}
 const eyeMat = new THREE.MeshStandardMaterial({ color: '#26201b', roughness: 0.6 });
 
 /* 몸통/팔 색은 서버 팔레트(8색)로 제한되므로 그대로 공유한다. */
@@ -104,7 +120,10 @@ function nameTexture(name: string, color: string, guest: boolean) {
   return texture;
 }
 
-function RemotePlayer({ player, near }: { player: PublicPlayer; near: boolean }) {
+const DEFAULT_HUMAN = characterById('man-forest')!;
+
+function HumanRemote({ player, near }: { player: PublicPlayer; near: boolean }) {
+  const cfg = characterById(player.character) ?? DEFAULT_HUMAN;
   const root = useRef<THREE.Group>(null);
   const body = useRef<THREE.Group>(null);
   const leftArm = useRef<THREE.Group>(null);
@@ -114,10 +133,13 @@ function RemotePlayer({ player, near }: { player: PublicPlayer; near: boolean })
   const phase = useRef(Math.random() * Math.PI * 2);
   const target = useRef({ x: player.x, y: player.y, z: player.z, rot: player.rot });
   const current = useRef({ rot: player.rot });
-  const cloth = useMemo(() => clothMaterial(player.color), [player.color]);
+  const cloth = useMemo(() => clothMaterial(cfg.cloth), [cfg.cloth]);
+  const skin = useMemo(() => skinMaterial(cfg.skin), [cfg.skin]);
+  const hair = useMemo(() => hairMaterial(cfg.hair), [cfg.hair]);
+  const longHair = cfg.hairStyle === 'long';
   const label = useMemo(
-    () => nameTexture(player.name, player.color, player.guest),
-    [player.name, player.color, player.guest],
+    () => nameTexture(player.name, cfg.cloth, player.guest),
+    [player.name, cfg.cloth, player.guest],
   );
 
   useEffect(() => {
@@ -201,17 +223,32 @@ function RemotePlayer({ player, near }: { player: PublicPlayer; near: boolean })
         {/* 팔 */}
         <group ref={leftArm} position={[-0.32, 1.36, 0]}>
           <mesh position={[0, -0.24, 0]} geometry={GEO.arm} material={cloth} castShadow={near} />
-          <mesh position={[0, -0.48, 0]} geometry={GEO.hand} material={handMat} castShadow={near} />
+          <mesh position={[0, -0.48, 0]} geometry={GEO.hand} material={skin} castShadow={near} />
         </group>
         <group ref={rightArm} position={[0.32, 1.36, 0]}>
           <mesh position={[0, -0.24, 0]} geometry={GEO.arm} material={cloth} castShadow={near} />
-          <mesh position={[0, -0.48, 0]} geometry={GEO.hand} material={handMat} castShadow={near} />
+          <mesh position={[0, -0.48, 0]} geometry={GEO.hand} material={skin} castShadow={near} />
         </group>
 
         {/* 머리 */}
         <group position={[0, 1.68, 0]}>
-          <mesh geometry={GEO.head} material={skinMat} castShadow={near} />
-          <mesh position={[0, 0.06, 0.03]} geometry={GEO.hair} material={hairMat} castShadow={near} />
+          <mesh geometry={GEO.head} material={skin} castShadow={near} />
+          <mesh
+            position={[0, 0.07, 0.03]}
+            geometry={GEO.hair}
+            material={hair}
+            scale={longHair ? [1.09, 1.05, 1.09] : [1, 1, 1]}
+            castShadow={near}
+          />
+          {longHair && (
+            <mesh
+              position={[0, -0.04, 0.13]}
+              geometry={GEO.hair}
+              material={hair}
+              scale={[1.0, 1.35, 0.55]}
+              castShadow={near}
+            />
+          )}
           <mesh position={[-0.07, 0.02, -0.17]} geometry={GEO.eye} material={eyeMat} />
           <mesh position={[0.07, 0.02, -0.17]} geometry={GEO.eye} material={eyeMat} />
         </group>
@@ -238,6 +275,155 @@ function RemotePlayer({ player, near }: { player: PublicPlayer; near: boolean })
     </group>
   );
 }
+
+const ANIMAL_LEGS = [
+  { x: -0.15, z: -0.18 },
+  { x: 0.15, z: -0.18 },
+  { x: -0.15, z: 0.2 },
+  { x: 0.15, z: 0.2 },
+] as const;
+
+function AnimalRemote({ player, near }: { player: PublicPlayer; near: boolean }) {
+  const cfg = characterById(player.character) ?? characterById('dog')!;
+  const root = useRef<THREE.Group>(null);
+  const body = useRef<THREE.Group>(null);
+  const tail = useRef<THREE.Group>(null);
+  const legRefs = useRef<(THREE.Group | null)[]>([]);
+  const phase = useRef(Math.random() * Math.PI * 2);
+  const target = useRef({ x: player.x, y: player.y, z: player.z, rot: player.rot });
+  const current = useRef({ rot: player.rot });
+
+  const bodyMat = useMemo(() => clothMaterial(cfg.cloth), [cfg.cloth]);
+  const accentMat = useMemo(() => clothMaterial(cfg.hair), [cfg.hair]);
+  const noseMat = useMemo(() => clothMaterial('#241a14'), []);
+  const label = useMemo(
+    () => nameTexture(player.name, cfg.cloth, player.guest),
+    [player.name, cfg.cloth, player.guest],
+  );
+
+  useEffect(() => {
+    target.current.x = player.x;
+    target.current.y = player.y;
+    target.current.z = player.z;
+    target.current.rot = player.rot;
+  }, [player.x, player.y, player.z, player.rot]);
+
+  useEffect(() => {
+    return () => {
+      label?.dispose();
+    };
+  }, [label]);
+
+  useFrame((state, rawDelta) => {
+    const delta = Math.min(0.06, rawDelta);
+    const g = root.current;
+    if (!g) return;
+    const k = 1 - Math.exp(-delta * 11);
+    const dx = target.current.x - g.position.x;
+    const dz = target.current.z - g.position.z;
+    const dist = Math.hypot(dx, dz);
+    g.position.x += dx * k;
+    g.position.y += (target.current.y - g.position.y) * (1 - Math.exp(-delta * 14));
+    g.position.z += dz * k;
+
+    let diff = target.current.rot - current.current.rot;
+    while (diff > Math.PI) diff -= Math.PI * 2;
+    while (diff < -Math.PI) diff += Math.PI * 2;
+    current.current.rot += diff * (1 - Math.exp(-delta * 12));
+    g.rotation.y = current.current.rot;
+
+    const walking = player.pose === 'walk' && dist > 0.015;
+    const speed = Math.min(1, dist / Math.max(0.0001, delta) / 3.0);
+    if (walking) phase.current += delta * (8 + speed * 5);
+
+    const lying = player.pose === 'lie';
+    const sitting = player.pose === 'sit';
+    if (body.current) {
+      const targetY = lying ? 0.16 : sitting ? 0.26 : 0.3;
+      body.current.position.y += (targetY - body.current.position.y) * Math.min(1, delta * 8);
+      const targetRot = lying ? -0.08 : 0;
+      body.current.rotation.x += (targetRot - body.current.rotation.x) * Math.min(1, delta * 8);
+    }
+
+    const swing = walking ? Math.sin(phase.current) * 0.6 : 0;
+    // 짝수 다리/홀수 다리가 교차로 움직인다.
+    for (let i = 0; i < legRefs.current.length; i++) {
+      const leg = legRefs.current[i];
+      if (!leg) continue;
+      const offset = i % 2 === 0 ? swing : -swing;
+      leg.rotation.x += (offset - leg.rotation.x) * Math.min(1, delta * 12);
+    }
+
+    // 꼬리: 걸을 때 더 흔들고, 가만히 있을 때도 살짝 흔든다.
+    if (tail.current) {
+      const wag = Math.sin(state.clock.elapsedTime * (walking ? 7.5 : 3.4)) * (walking ? 0.42 : 0.18);
+      tail.current.rotation.z += (wag - tail.current.rotation.z) * Math.min(1, delta * 10);
+    }
+  });
+
+  return (
+    <group ref={root} position={[player.x, player.y, player.z]} rotation-y={player.rot}>
+      <group ref={body} position={[0, 0.3, 0]}>
+        {/* 몸통 */}
+        <mesh position={[0, 0, 0.02]} rotation-x={Math.PI / 2} geometry={ANIMAL_GEO.body} material={bodyMat} castShadow={near} />
+        {/* 머리 */}
+        <group position={[0, 0.13, -0.38]}>
+          <mesh geometry={ANIMAL_GEO.head} material={bodyMat} castShadow={near} />
+          <mesh position={[0, -0.04, -0.125]} scale={[1.15, 0.85, 0.8]} geometry={ANIMAL_GEO.muzzle} material={accentMat} castShadow={near} />
+          <mesh position={[0, -0.055, -0.18]} geometry={ANIMAL_GEO.nose} material={noseMat} />
+          <mesh position={[-0.065, 0.035, -0.135]} geometry={ANIMAL_GEO.eye} material={eyeMat} />
+          <mesh position={[0.065, 0.035, -0.135]} geometry={ANIMAL_GEO.eye} material={eyeMat} />
+          {cfg.animal === 'cat' ? (
+            <>
+              <mesh position={[-0.095, 0.145, -0.01]} geometry={ANIMAL_GEO.catEar} material={accentMat} castShadow={near} />
+              <mesh position={[0.095, 0.145, -0.01]} geometry={ANIMAL_GEO.catEar} material={accentMat} castShadow={near} />
+            </>
+          ) : (
+            <>
+              <mesh position={[-0.125, 0.02, -0.01]} rotation-z={0.35} geometry={ANIMAL_GEO.dogEar} material={accentMat} castShadow={near} />
+              <mesh position={[0.125, 0.02, -0.01]} rotation-z={-0.35} geometry={ANIMAL_GEO.dogEar} material={accentMat} castShadow={near} />
+            </>
+          )}
+        </group>
+        {/* 다리 */}
+        {ANIMAL_LEGS.map((leg, i) => (
+          <group
+            key={i}
+            ref={(el) => {
+              legRefs.current[i] = el;
+            }}
+            position={[leg.x, -0.075, leg.z]}
+          >
+            <mesh position={[0, -0.11, 0]} geometry={ANIMAL_GEO.leg} material={accentMat} castShadow={near} />
+          </group>
+        ))}
+        {/* 꼬리 */}
+        <group ref={tail} position={[0, 0.08, 0.36]} rotation={[-0.72, 0, 0]}>
+          <mesh position={[0, 0.15, 0]} geometry={ANIMAL_GEO.tail} material={accentMat} castShadow={near} />
+        </group>
+      </group>
+
+      {/* 이름표 */}
+      {label && (
+        <sprite position={[0, 0.95, 0]} scale={[1.3, 0.32, 1]}>
+          <spriteMaterial map={label} transparent depthWrite={false} depthTest sizeAttenuation toneMapped={false} />
+        </sprite>
+      )}
+    </group>
+  );
+}
+
+const ANIMAL_GEO = {
+  body: new THREE.CapsuleGeometry(0.26, 0.44, 5, 10),
+  head: new THREE.SphereGeometry(0.16, 14, 10),
+  muzzle: new THREE.SphereGeometry(0.07, 10, 8),
+  nose: new THREE.SphereGeometry(0.022, 8, 6),
+  eye: new THREE.SphereGeometry(0.017, 6, 5),
+  dogEar: new THREE.BoxGeometry(0.075, 0.17, 0.035),
+  catEar: new THREE.ConeGeometry(0.058, 0.16, 5),
+  leg: new THREE.CylinderGeometry(0.038, 0.046, 0.22, 6),
+  tail: new THREE.CylinderGeometry(0.028, 0.05, 0.34, 6),
+};
 
 type VisibleEntry = { id: string; near: boolean };
 
@@ -282,7 +468,13 @@ export function RemotePlayers() {
     <group>
       {visible.map(({ id, near }) => {
         const player = byId.get(id);
-        return player ? <RemotePlayer key={id} player={player} near={near} /> : null;
+        if (!player) return null;
+        const cfg = characterById(player.character);
+        return cfg?.kind === 'animal' ? (
+          <AnimalRemote key={id} player={player} near={near} />
+        ) : (
+          <HumanRemote key={id} player={player} near={near} />
+        );
       })}
     </group>
   );

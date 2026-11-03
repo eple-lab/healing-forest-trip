@@ -359,6 +359,17 @@ function buildTargets(): Target[] {
     },
   });
 
+  /* 입구 알림판 */
+  targets.push({
+    id: 'notice-board',
+    label: '입구 알림판 읽기',
+    hint: '관리자가 올린 일정과 업데이트 소식을 확인합니다',
+    x: -2.8,
+    z: 66.3,
+    radius: 2.4,
+    action: () => useGame.getState().setNoticeOpen(true),
+  });
+
   /* 표지판 */
   for (const sign of SIGNS) {
     targets.push({
@@ -466,7 +477,7 @@ export function InteractionSystem() {
         }
       }
       const store = useGame.getState();
-      if (store.chatOpen || store.helpOpen) return;
+      if (store.chatOpen || store.helpOpen || store.noticeOpen) return;
       if (store.seat) {
         event.preventDefault();
         if (store.seat.kind === 'bed' && event.code === 'Enter') return;
@@ -492,6 +503,7 @@ export function InteractionSystem() {
   useFrame((_, delta) => {
     sinceCheck.current += delta;
     if (sinceCheck.current < 0.09) return;
+    if (useGame.getState().noticeOpen) return;
     sinceCheck.current = 0;
 
     const store = useGame.getState();

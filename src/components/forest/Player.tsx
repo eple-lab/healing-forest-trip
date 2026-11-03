@@ -183,7 +183,7 @@ export function Player() {
   useFrame((state, rawDelta) => {
     const delta = Math.min(0.05, rawDelta);
     const store = useGame.getState();
-    const frozen = store.chatOpen || store.helpOpen || store.resting;
+    const frozen = store.chatOpen || store.helpOpen || store.resting || store.noticeOpen;
     const seat = store.seat;
 
     /* 앉은 상태 */

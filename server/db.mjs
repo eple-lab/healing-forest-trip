@@ -123,6 +123,115 @@ export async function recentChat(limit = 30) {
   }));
 }
 
+/** 입구 알림판 공지 (v1: 운영자가 DB 에 직접 작성, 앱에는 공개 쓰기 없음) */
+export async function listAnnouncements(limit = 10) {
+  if (!isDbConfigured()) return [];
+  const safeLimit = Math.max(1, Math.min(20, limit));
+  const { rows } = await query(
+    `SELECT id, title, body, category, pinned, published_at
+       FROM announcements
+      WHERE is_published = TRUE
+        AND published_at <= now()
+        AND (expires_at IS NULL OR expires_at > now())
+      ORDER BY pinned DESC, published_at DESC
+      LIMIT $1`,
+    [safeLimit],
+  );
+  return rows.map((r) => ({
+    id: String(r.id),
+    title: r.title,
+    body: r.body,
+    category: r.category,
+    pinned: r.pinned === true,
+    publishedAt: new Date(r.published_at).toISOString(),
+  }));
+}
+
+/**
+ * 공지 변경 감지용 지문. count + max(updated_at) 조합으로
+ * INSERT/UPDATE/DELETE 를 모두 감지한다. (SELECT 만으로 충분)
+ */
+export async function getNoticeFingerprint() {
+  const { rows } = await query(
+    `SELECT count(*)::int AS n,
+            COALESCE(EXTRACT(EPOCH FROM max(updated_at))::bigint, 0) AS v
+       FROM announcements`,
+  );
+  return {
+    n: rows[0]?.n ?? 0,
+    v: Number(rows[0]?.v ?? 0),
+  };
+}
+
+/**
+ * PostgreSQL LISTEN/NOTIFY 로 공지 변경을 즉시 감지한다.
+ * - pooled(PgBouncer) 연결은 LISTEN 을 지원하지 않으므로
+ *   DATABASE_LISTEN_URL (직결) 을 쓰거나, 없으면 null 을 반환해 폴링으로 대체한다.
+ * - 반환값은 listener.close() 함수다.
+ */
+export async function startNoticeListen({ onChange, onError } = {}) {
+  const url = process.env.DATABASE_LISTEN_URL || process.env.DATABASE_URL;
+  if (!url) return null;
+  if (url.includes('-pooler')) {
+    console.warn(
+      '[notices] pooled 연결은 LISTEN/NOTIFY 를 지원하지 않습니다. DATABASE_LISTEN_URL(직결) 을 설정하거나 30초 폴링으로 동작합니다.',
+    );
+    return null;
+  }
+
+  const { Client } = pg;
+  const client = new Client({
+    connectionString: url,
+    ssl: buildSsl(url),
+    application_name: 'healing-forest-trip-notices',
+  });
+  client.on('notification', () => {
+    try {
+      onChange?.();
+    } catch (err) {
+      console.warn('[notices] onChange handler failed:', err?.message ?? 'unknown');
+    }
+  });
+  client.on('error', (err) => {
+    console.warn('[notices] listen connection error:', err.code ?? err.message);
+    onError?.(err);
+  });
+
+  try {
+    await client.connect();
+    await client.query('LISTEN announcements_changed');
+    console.log('[notices] LISTEN announcements_changed 시작');
+    return { close: () => client.end().catch(() => {}) };
+  } catch (err) {
+    console.warn('[notices] LISTEN 시작 실패, 폴링으로 대체합니다:', err.code ?? err.message);
+    onError?.(err);
+    return null;
+  }
+}
+
+/** 선택한 캐릭터(다른 기기/브라우저에서도 유지) */
+export async function getCharacter(userId) {
+  if (!isDbConfigured() || !userId) return null;
+  const { rows } = await query(`SELECT character FROM users WHERE id = $1`, [userId]);
+  return rows[0]?.character ?? null;
+}
+
+export async function setCharacter({ userId, provider, name, image, character }) {
+  if (!isDbConfigured() || !userId) return { saved: false };
+  const { rows } = await query(
+    `INSERT INTO users (id, provider, name, image_url, character, last_seen_at, visit_count)
+     VALUES ($1, $2, $3, $4, $5, now(), 1)
+     ON CONFLICT (id) DO UPDATE
+       SET character = EXCLUDED.character,
+           name = EXCLUDED.name,
+           image_url = EXCLUDED.image_url,
+           last_seen_at = now()
+     RETURNING character`,
+    [userId, provider ?? 'guest', name ?? '나그네', image ?? null, character],
+  );
+  return { saved: Boolean(rows[0]?.character) };
+}
+
 export async function loadFire() {
   const { rows } = await query(
     `SELECT value FROM world_state WHERE key = 'cabin_fire'`,

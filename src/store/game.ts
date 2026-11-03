@@ -6,6 +6,7 @@ import type {
   ConnectionState,
   Drink,
   InteractionTarget,
+  Notice,
   Pose,
   Presence,
   PublicPlayer,
@@ -13,6 +14,7 @@ import type {
   ServerFire,
 } from '@/types/game';
 import type { Zone } from '@/lib/world';
+import { markReadIds } from '@/lib/notices';
 
 type ToastTone = 'info' | 'warm' | 'warn';
 
@@ -33,6 +35,9 @@ type GameState = {
   chat: ChatMessage[];
   chatOpen: boolean;
   helpOpen: boolean;
+  notices: Notice[];
+  noticesUnread: number;
+  noticeOpen: boolean;
   connection: ConnectionState;
   visitCount: number | null;
   audioStarted: boolean;
@@ -45,8 +50,10 @@ type GameState = {
 
   user: { id: string; name: string; image: string | null; isGuest: boolean } | null;
   unreadChat: number;
+  characterId: string | null;
 
   setUser: (user: { id: string; name: string; image: string | null; isGuest: boolean } | null) => void;
+  setCharacter: (id: string | null) => void;
   sit: (seat: Seat) => void;
   stand: () => void;
   setResting: (value: boolean) => void;
@@ -70,6 +77,9 @@ type GameState = {
   setChat: (messages: ChatMessage[]) => void;
   setChatOpen: (open: boolean) => void;
   setHelpOpen: (open: boolean) => void;
+  setNotices: (items: Notice[], unread: number) => void;
+  markNoticesRead: () => void;
+  setNoticeOpen: (open: boolean) => void;
   setConnection: (state: ConnectionState) => void;
   setVisitCount: (count: number) => void;
   setAudioStarted: (started: boolean) => void;
@@ -101,6 +111,9 @@ export const useGame = create<GameState>((set, get) => ({
   chat: [],
   chatOpen: false,
   helpOpen: false,
+  notices: [],
+  noticesUnread: 0,
+  noticeOpen: false,
   connection: 'connecting',
   visitCount: null,
   audioStarted: false,
@@ -113,8 +126,10 @@ export const useGame = create<GameState>((set, get) => ({
 
   user: null,
   unreadChat: 0,
+  characterId: null,
 
   setUser: (user) => set({ user }),
+  setCharacter: (characterId) => set({ characterId }),
 
   sit: (seat) =>
     set({
@@ -207,6 +222,14 @@ export const useGame = create<GameState>((set, get) => ({
   setChatOpen: (chatOpen) =>
     set({ chatOpen, unreadChat: chatOpen ? 0 : get().unreadChat }),
   setHelpOpen: (helpOpen) => set({ helpOpen }),
+  setNotices: (items, unread) =>
+    set({ notices: items.slice(0, 20), noticesUnread: Math.max(0, Math.floor(unread)) }),
+  markNoticesRead: () => {
+    const items = get().notices;
+    if (items.length > 0) markReadIds(items.map((n) => n.id));
+    set({ noticesUnread: 0 });
+  },
+  setNoticeOpen: (noticeOpen) => set({ noticeOpen }),
   setConnection: (connection) => set({ connection }),
   setVisitCount: (visitCount) => set({ visitCount }),
   setAudioStarted: (audioStarted) => set({ audioStarted }),

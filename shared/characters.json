@@ -1,0 +1,58 @@
+{
+  "characters": [
+    {
+      "id": "man-forest",
+      "label": "남자 · 숲 나그네",
+      "kind": "human",
+      "cloth": "#5d6e4e",
+      "hair": "#241a12",
+      "skin": "#e2b48f",
+      "hairStyle": "short"
+    },
+    {
+      "id": "man-cabin",
+      "label": "남자 · 오두막지기",
+      "kind": "human",
+      "cloth": "#4f5d73",
+      "hair": "#6b6b6b",
+      "skin": "#dfb08a",
+      "hairStyle": "short"
+    },
+    {
+      "id": "woman-moss",
+      "label": "여자 · 이끼 산책자",
+      "kind": "human",
+      "cloth": "#7a8a63",
+      "hair": "#3a2a1e",
+      "skin": "#e8c0a0",
+      "hairStyle": "long"
+    },
+    {
+      "id": "woman-sunset",
+      "label": "여자 · 노을 나그네",
+      "kind": "human",
+      "cloth": "#a3604a",
+      "hair": "#7a3b22",
+      "skin": "#f0c8a8",
+      "hairStyle": "long"
+    },
+    {
+      "id": "dog",
+      "label": "강아지 · 꼬리흔들",
+      "kind": "animal",
+      "animal": "dog",
+      "cloth": "#a8763e",
+      "hair": "#5a3b22",
+      "skin": "#caa066"
+    },
+    {
+      "id": "cat",
+      "label": "고양이 · 살금살금",
+      "kind": "animal",
+      "animal": "cat",
+      "cloth": "#4d4a52",
+      "hair": "#2b2930",
+      "skin": "#8a8691"
+    }
+  ]
+}

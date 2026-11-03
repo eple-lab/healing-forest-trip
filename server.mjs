@@ -6,6 +6,7 @@
  */
 import { createServer } from 'node:http';
 import { createRequire } from 'node:module';
+import { createHash } from 'node:crypto';
 import next from 'next';
 import { Server } from 'socket.io';
 import {
@@ -26,17 +27,22 @@ import {
   closePool,
   endVisit,
   getStats,
+  getNoticeFingerprint,
   insertChat,
   isDbConfigured,
   loadFire,
+  listAnnouncements,
   recentChat,
   saveFire,
+  startNoticeListen,
   startVisit,
   upsertUser,
 } from './server/db.mjs';
 
 const require = createRequire(import.meta.url);
 const WORLD = require('./shared/world.json');
+const CHARACTERS = require('./shared/characters.json').characters;
+const CHARACTER_IDS = new Set(CHARACTERS.map((c) => c.id));
 const nextAuthJwt = require('next-auth/jwt');
 const getToken = nextAuthJwt.getToken ?? nextAuthJwt.default?.getToken;
 
@@ -116,6 +122,35 @@ const attemptBucketsByIp = new Map();
 let chatHistory = [];
 let statsCache = { at: 0, data: null };
 let shuttingDown = false;
+
+/* ── 입구 알림판 공지 ─────────────────────
+ * Neon 콘솔/SQL 로 관리자가 공지를 바꾸면
+ * LISTEN/NOTIFY → 즉시 전체 접속자에게 `notices:changed` 를 보낸다.
+ * (pooled 연결이면 30초 폴링으로 대체)
+ * 응답은 60초 캐시 + ETag 로 대역폭을 아낀다.
+ */
+const ANNOUNCEMENTS_TTL_MS = 60_000;
+const NOTICE_POLL_MS = 30_000;
+const FALLBACK_ANNOUNCEMENTS = [
+  {
+    id: 'welcome',
+    title: '숲속여행에 오신 것을 환영합니다',
+    body: '관리자가 공지를 등록하면 이 알림판에 표시됩니다. 브라우저를 닫으면 로그아웃되니 다시 오실 때는 로그인해 주세요.',
+    category: 'update',
+    pinned: true,
+    publishedAt: '2026-11-03T00:00:00.000Z',
+  },
+];
+let noticeSnapshot = {
+  at: 0,
+  items: FALLBACK_ANNOUNCEMENTS,
+  json: '',
+  etag: '',
+  source: 'fallback',
+};
+let lastNoticeFp = null;
+let noticeListener = null;
+let noticePollTimer = null;
 
 /* ── 이동 브로드캐스트 배치 ─────────────────────
  * 접속자가 늘어날수록 "모두에게 매 이동마다 전송"은 O(N²)이 된다.
@@ -220,6 +255,7 @@ io.use(async (socket, next) => {
       image,
       guest,
       color: colorFor(token.sub),
+      character: null,
       x: WORLD.start.x + (Math.random() * 2 - 1) * 1.4,
       y: 0,
       z: WORLD.start.z + (Math.random() * 2 - 1) * 1.4,
@@ -309,6 +345,19 @@ io.on('connection', (socket) => {
       moveTimer = setTimeout(flushMoves, MOVE_FLUSH_MS);
       moveTimer.unref?.();
     }
+  });
+
+  socket.on('profile:set', (payload) => {
+    const raw = payload && typeof payload === 'object' ? payload.character : payload;
+    const id = typeof raw === 'string' ? raw.trim() : '';
+    if (!CHARACTER_IDS.has(id)) {
+      socket.emit('profile:set:error', { reason: 'invalid_character' });
+      return;
+    }
+    if (player.character === id) return;
+    player.character = id;
+    socket.emit('profile:set:ok', { character: id });
+    socket.broadcast.emit('player:update', publicPlayer(player));
   });
 
   socket.on('chat:send', (payload) => {
@@ -424,6 +473,32 @@ async function handleHttp(req, res) {
     return;
   }
 
+  // ── 입구 알림판 공지 (ETag + 60초 캐시, If-None-Match 로 304 지원) ──
+  if (url.pathname === '/api/announcements' && req.method === 'GET') {
+    const snapshot = await getNoticeSnapshot();
+    const baseHeaders = {
+      'content-type': 'application/json; charset=utf-8',
+      'cache-control': 'public, max-age=15, s-maxage=60, stale-while-revalidate=300',
+      'x-content-type-options': 'nosniff',
+      'x-announcements-source': snapshot.source,
+    };
+    const ifNoneMatch = req.headers['if-none-match'];
+    if (ifNoneMatch && ifNoneMatch === snapshot.etag) {
+      res.writeHead(304, { ...baseHeaders, etag: snapshot.etag });
+      res.end();
+      return;
+    }
+    res.writeHead(200, { ...baseHeaders, etag: snapshot.etag });
+    res.end(snapshot.json);
+    return;
+  }
+
+  if (url.pathname === '/api/announcements' && req.method !== 'GET') {
+    res.writeHead(405, { allow: 'GET' });
+    res.end();
+    return;
+  }
+
   if (url.pathname === '/api/stats' && req.method === 'GET') {
     try {
       if (!statsCache.data || Date.now() - statsCache.at > MINUTE) {
@@ -464,6 +539,7 @@ function publicPlayer(p) {
     image: p.image,
     guest: p.guest,
     color: p.color,
+    character: p.character ?? null,
     x: p.x,
     y: p.y,
     z: p.z,
@@ -566,6 +642,91 @@ function flushMoves() {
 
     if (batch.length > 0) client.volatile.emit('players:move', batch);
   }
+}
+
+/** 60초 캐시된 공지 JSON 을 반환한다. 변경 시에는 캐시를 무효화한다. */
+async function getNoticeSnapshot() {
+  if (noticeSnapshot.at > 0 && Date.now() - noticeSnapshot.at < ANNOUNCEMENTS_TTL_MS) {
+    return noticeSnapshot;
+  }
+
+  let items, source;
+  if (!isDbConfigured()) {
+    items = FALLBACK_ANNOUNCEMENTS;
+    source = 'fallback';
+  } else {
+    try {
+      items = await listAnnouncements(10);
+      source = 'db';
+    } catch (err) {
+      console.warn('[db] announcements failed:', err.code ?? err.message);
+      items = FALLBACK_ANNOUNCEMENTS;
+      source = 'fallback';
+    }
+  }
+
+  const stable = JSON.stringify({ items });
+  noticeSnapshot = {
+    at: Date.now(),
+    items,
+    json: JSON.stringify({ items, fetchedAt: Date.now(), source }),
+    etag: `"${createHash('sha1').update(stable).digest('hex')}"`,
+    source,
+  };
+  return noticeSnapshot;
+}
+
+function invalidateAnnouncements() {
+  noticeSnapshot = { ...noticeSnapshot, at: 0 };
+}
+
+/** 공지가 바뀌었다고 모든 접속자에게 알린다(내용 없이, 클라이언트가 스스로 다시 조회). */
+function broadcastNoticesChanged(reason) {
+  invalidateAnnouncements();
+  if (!shuttingDown) io.emit('notices:changed', { reason: reason ?? 'changed' });
+}
+
+/** 폴링 기반 감지: LISTEN 이 없을 때를 위한 안전망 (30초). */
+async function checkNoticeFingerprint() {
+  if (!isDbConfigured()) return;
+  try {
+    const fp = await getNoticeFingerprint();
+    const key = `${fp.n}:${fp.v}`;
+    if (lastNoticeFp === null) {
+      lastNoticeFp = key;
+      return;
+    }
+    if (key !== lastNoticeFp) {
+      lastNoticeFp = key;
+      broadcastNoticesChanged('poll');
+    }
+  } catch (err) {
+    console.warn('[notices] fingerprint check failed:', err?.code ?? err?.message ?? 'unknown');
+  }
+}
+
+/** LISTEN(직결)으로 즉시 감지하고, 없으면 폴링만 돌린다. */
+async function startNoticeWatch() {
+  if (!isDbConfigured()) {
+    console.log('[notices] DATABASE_URL 이 없어 기본 안내만 표시합니다.');
+    return;
+  }
+
+  noticePollTimer = setInterval(() => {
+    void checkNoticeFingerprint();
+  }, NOTICE_POLL_MS);
+  noticePollTimer.unref?.();
+  // 폴링이 곧 변경을 감지한다. LISTEN 은 지연 없이 알리기 위한 보조 수단이다.
+  await checkNoticeFingerprint();
+  noticeListener = await startNoticeListen({
+    onChange: () => {
+      lastNoticeFp = null;
+      broadcastNoticesChanged('notify');
+    },
+    onError: () => {
+      // LISTEN 실패 시 30초 폴링이 대신 감지한다.
+    },
+  });
 }
 
 function zoneAt(x, z) {
@@ -692,6 +853,10 @@ void (async () => {
 const presenceTimer = setInterval(broadcastPresence, 5_000);
 presenceTimer.unref?.();
 
+void startNoticeWatch().catch((err) =>
+  console.warn('[notices] watch failed to start:', err?.message ?? 'unknown'),
+);
+
 /* ─────────────────────────────────────────────
  * 8. 시작 / 종료
  * ───────────────────────────────────────────── */
@@ -706,6 +871,14 @@ async function shutdown(signal) {
   shuttingDown = true;
   console.log(`\n[server] ${signal} 수신, 정리 중...`);
   clearInterval(presenceTimer);
+  if (noticePollTimer) {
+    clearInterval(noticePollTimer);
+    noticePollTimer = null;
+  }
+  if (noticeListener) {
+    await noticeListener.close().catch(() => {});
+    noticeListener = null;
+  }
   if (moveTimer) {
     clearTimeout(moveTimer);
     moveTimer = null;

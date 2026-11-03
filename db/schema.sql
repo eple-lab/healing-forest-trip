@@ -21,6 +21,8 @@ CREATE TABLE IF NOT EXISTS users (
   last_seen_at timestamptz NOT NULL DEFAULT now()
 );
 -- 이메일은 수집하지 않습니다 (최소 수집 원칙).
+ALTER TABLE users ADD COLUMN IF NOT EXISTS character text
+  CHECK (character IS NULL OR char_length(character) <= 32);
 
 CREATE TABLE IF NOT EXISTS visits (
   id              bigserial PRIMARY KEY,
@@ -60,6 +62,42 @@ CREATE TABLE IF NOT EXISTS audit_events (
 );
 CREATE INDEX IF NOT EXISTS audit_events_created_at_idx ON audit_events (created_at DESC);
 
+-- 입구 알림판 공지. 관리자(운영자)만 Neon 콘솔/SQL 로 작성한다.
+-- 앱에는 공개 쓰기 엔드포인트를 두지 않는다.
+CREATE TABLE IF NOT EXISTS announcements (
+  id           bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  title        text NOT NULL CHECK (char_length(title) BETWEEN 1 AND 80),
+  body         text NOT NULL CHECK (char_length(body) BETWEEN 1 AND 500),
+  category     text NOT NULL DEFAULT 'notice'
+               CHECK (category IN ('notice', 'schedule', 'maintenance', 'update')),
+  pinned       boolean NOT NULL DEFAULT false,
+  is_published boolean NOT NULL DEFAULT true,
+  published_at timestamptz NOT NULL DEFAULT now(),
+  expires_at   timestamptz,
+  created_at   timestamptz NOT NULL DEFAULT now(),
+  updated_at   timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS announcements_published_idx
+  ON announcements (published_at DESC)
+  WHERE is_published = TRUE;
+
+-- 공지가 바뀌면 PostgreSQL 이 announcements_changed 를 알린다.
+-- 서버는 pooled 연결이 아니라 직결(DATABASE_LISTEN_URL)로 LISTEN 한다.
+-- (pooled PgBouncer 는 LISTEN/NOTIFY 를 지원하지 않는다.)
+CREATE OR REPLACE FUNCTION notify_notices_changed()
+RETURNS trigger AS $$
+BEGIN
+  PERFORM pg_notify('announcements_changed', '1');
+  RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS announcements_notify ON announcements;
+CREATE TRIGGER announcements_notify
+  AFTER INSERT OR UPDATE OR DELETE ON announcements
+  FOR EACH STATEMENT
+  EXECUTE FUNCTION notify_notices_changed();
+
 INSERT INTO app_meta (key, value)
-VALUES ('schema_version', '1')
+VALUES ('schema_version', '2')
 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now();

@@ -7,6 +7,7 @@
 
 import { useEffect, useRef } from 'react';
 import { getSocket, disconnectSocket } from '@/lib/socket';
+import { isCharacterId } from '@/lib/characters';
 import { useClock, useGame } from '@/store/game';
 import type { ChatMessage, Pose, Presence, PublicPlayer, ServerFire } from '@/types/game';
 
@@ -28,6 +29,7 @@ function normalizePlayer(input: Partial<PublicPlayer> & { id: string }): PublicP
     image: typeof input.image === 'string' ? input.image : null,
     guest: input.guest === true,
     color: typeof input.color === 'string' ? input.color : '#7fa88a',
+    character: isCharacterId(input.character) ? input.character : undefined,
     x: Number.isFinite(input.x) ? (input.x as number) : 0,
     y: Number.isFinite(input.y) ? (input.y as number) : 0,
     z: Number.isFinite(input.z) ? (input.z as number) : 0,
@@ -50,6 +52,9 @@ export function MultiplayerBridge({ enabled = true }: { enabled?: boolean }) {
 
     const onConnect = () => {
       useGame.getState().setConnection('online');
+      // 서버는 클라이언트가 보낸 값을 검증한다. 로컬 선택이 있으면 알린다.
+      const id = useGame.getState().characterId;
+      if (id) getSocket().emit('profile:set', { character: id });
     };
 
     const onDisconnect = () => {
@@ -148,6 +153,11 @@ export function MultiplayerBridge({ enabled = true }: { enabled?: boolean }) {
       }
     };
 
+    const onPlayerUpdate = (player: PublicPlayer) => {
+      if (!player?.id) return;
+      useGame.getState().upsertPlayer(normalizePlayer(player));
+    };
+
     /**
      * 브라우저 탭을 닫거나 컴퓨터가 꺼질 때 서버 접속자 목록에서 즉시 빠지도록
      * pagehide 시점에 소켓을 닫는다. (b/bfcache 복원 시 pageshow 에서 다시 연결)
@@ -177,6 +187,7 @@ export function MultiplayerBridge({ enabled = true }: { enabled?: boolean }) {
     socket.on('chat:denied', onChatDenied);
     socket.on('fire:full', onFireFull);
     socket.on('profile', onProfile);
+    socket.on('player:update', onPlayerUpdate);
     window.addEventListener('pagehide', onPageHide);
     window.addEventListener('pageshow', onPageShow);
 
@@ -213,6 +224,7 @@ export function MultiplayerBridge({ enabled = true }: { enabled?: boolean }) {
       socket.off('chat:denied', onChatDenied);
       socket.off('fire:full', onFireFull);
       socket.off('profile', onProfile);
+      socket.off('player:update', onPlayerUpdate);
       window.removeEventListener('pagehide', onPageHide);
       window.removeEventListener('pageshow', onPageShow);
       disconnectSocket();

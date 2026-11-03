@@ -3,6 +3,15 @@ import type { Zone } from '@/lib/world';
 export type Pose = 'idle' | 'walk' | 'sit' | 'lie';
 export type Drink = 'coffee' | 'water';
 
+export type Notice = {
+  id: string;
+  title: string;
+  body: string;
+  category: string;
+  pinned: boolean;
+  publishedAt: string;
+};
+
 export type Seat = {
   id: string;
   kind: 'stump' | 'chair' | 'window' | 'bed';
@@ -24,6 +33,7 @@ export type PublicPlayer = {
   image: string | null;
   guest: boolean;
   color: string;
+  character?: string | null;
   x: number;
   y: number;
   z: number;
