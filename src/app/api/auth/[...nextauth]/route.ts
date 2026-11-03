@@ -40,20 +40,25 @@ function readSetCookies(headers: Headers): string[] {
 
 async function handle(request: Request, context: { params: { nextauth: string[] } }) {
   const response = await nextAuthHandler(request, context);
-  const cookies = readSetCookies(response.headers);
-  if (cookies.length === 0) return response;
-
-  let changed = false;
-  const rewritten = cookies.map((cookie) => {
-    const next = stripSessionExpiry(cookie);
-    if (next !== cookie) changed = true;
-    return next;
-  });
-  if (!changed) return response;
 
   const headers = new Headers(response.headers);
-  headers.delete('set-cookie');
-  for (const cookie of rewritten) headers.append('set-cookie', cookie);
+  // 인증 응답은 어떤 캐시에 있어도 안 된다.
+  headers.set('Cache-Control', 'no-store, must-revalidate');
+  headers.set('Pragma', 'no-cache');
+
+  const cookies = readSetCookies(response.headers);
+  let changed = false;
+  if (cookies.length > 0) {
+    const rewritten = cookies.map((cookie) => {
+      const next = stripSessionExpiry(cookie);
+      if (next !== cookie) changed = true;
+      return next;
+    });
+    if (changed) {
+      headers.delete('set-cookie');
+      for (const cookie of rewritten) headers.append('set-cookie', cookie);
+    }
+  }
 
   return new Response(response.body, {
     status: response.status,
