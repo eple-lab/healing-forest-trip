@@ -13,3 +13,4 @@ Thumbs.db
 tsconfig.tsbuildinfo
 next-env.d.ts
 .screenshots/
+chat_backup*.json
