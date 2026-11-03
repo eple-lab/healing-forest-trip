@@ -2200,3 +2200,66 @@ kbd {
     transition-duration: 0.001ms !important;
   }
 }
+
+.error-screen {
+  min-height: 100dvh;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 0.75rem;
+  padding: 2rem;
+  text-align: center;
+  background: radial-gradient(circle at 50% 35%, rgba(83, 107, 80, 0.35), transparent 60%), #16211c;
+  color: #f0e9dd;
+}
+
+.error-eyebrow {
+  margin: 0;
+  font-size: 0.8rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #c9b98f;
+}
+
+.error-screen h1 {
+  margin: 0;
+  font-size: 1.9rem;
+}
+
+.error-detail {
+  margin: 0;
+  color: #c9d3c4;
+  max-width: 32rem;
+}
+
+.error-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.webgl-lost {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-content: center;
+  gap: 0.75rem;
+  padding: 2rem;
+  text-align: center;
+  color: #f0e9dd;
+  background: rgba(16, 23, 19, 0.82);
+  backdrop-filter: blur(4px);
+}
+
+.webgl-lost h2 {
+  margin: 0;
+  font-size: 1.35rem;
+}
+
+.webgl-lost p {
+  margin: 0;
+  color: #c9d3c4;
+  max-width: 30rem;
+}
