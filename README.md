@@ -11,6 +11,8 @@
 - 2층 큰 창으로 한국 시간의 해·달·별과 숲을 바라보기
 - 외부 음원 없이 Web Audio 로 합성하는 바람·새소리·발소리·장작 소리
 - Google 로그인 + 게스트 로그인, 이메일 미수집
+- 브라우저를 닫거나 컴퓨터가 꺼지면 세션이 끊어져 접속자 목록에서 즉시 빠짐
+- 다중 접속을 위한 이동 배치 전송·원거리 컬링·dpr 상한(기본 크롬 기준)
 
 ## 빠른 시작
 
@@ -48,6 +50,8 @@ npm run db:migrate
 | `npm run lint` | ESLint |
 | `npm run db:migrate` | Neon 스키마 적용 (멱등) |
 | `npm run db:prune` | 30일 채팅 / 90일 방문 / 180일 감사 로그 정리 |
+| `node scripts/smoke-visual.mjs` | 랜딩~오두막 고급 회귀(스크린샷, 콘솔 오류 수집) |
+| `node scripts/smoke-two.mjs` | 2탭 멀티플레이 회귀(동기화·즉시 퇴장 확인) |
 
 ## 기술 스택
 
@@ -113,6 +117,7 @@ healing-forest-trip/
 - nonce 기반 CSP, HSTS, `X-Frame-Options: DENY`, `frame-ancestors 'none'`
 - 소켓 핸드셰이크에서 서버가 NextAuth JWT 를 직접 검증 (클라이언트 이름 불신)
 - Origin 검증, IP별 연결 수/시도 제한, 전체 40명 정원, 16KB 소켓 payload 제한
+- 세션 토큰 쿠키는 브라우저 세션 쿠키로 발급, 탭 종료 시 소켓 즉시 종료
 - 채팅은 서버가 빈터 존을 확인하고 240자·1.5초 쿨다운·중복/도배 제한
 - 모든 SQL 파라미터 바인딩, 이메일 미수집, IP 원문 미저장(로그 상관용 해시만)
 - 오픈 리다이렉트 방지, 운영 환경 변수 검증(32자 시크릿/HTTPS URL)

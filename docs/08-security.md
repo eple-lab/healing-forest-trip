@@ -4,7 +4,7 @@
 
 | 자산 | 위협 | 완화 |
 | --- | --- | --- |
-| 세션 | 탈취/위조 | httpOnly 쿠키, JWT 서명, 7일 만료, HTTPS, `useSecureCookies` |
+| 세션 | 탈취/위조 | httpOnly 쿠키, JWT 서명, HTTPS, `useSecureCookies`. 브라우저에는 **세션 쿠키**로 발급(Expires 제거) → 브라우저 종료 시 자동 로그아웃 |
 | 사용자 이름 | 사칭/스크립트 주입 | React 이스케이프, NFKC·제어문자 제거, 24자 제한, 서버가 최종 결정 |
 | 채팅 | 도배/광고/욕설/링크 | 존 검증, 240자, 1.5s, 토큰 버킷, 중복 15s, 링크 2개 제한 |
 | 서버 | 소켓 스팸/과부하 | IP당 8연결, 40명 정원, 16KB payload, move 30/s, 시도 제한 |
@@ -23,6 +23,16 @@
 - JWT: `NEXTAUTH_SECRET` 32자 이상, 7일 만료, 1시간마다 갱신.
 - `NEXTAUTH_URL` 이 https 이면 secure cookie.
 - 운영에서 시크릿/URL/게스트 정책이 잘못되면 `server.mjs` 가 **부팅을 거부**한다.
+
+## 접속 종료 (세션 쿠키)
+
+- NextAuth 는 세션 JWT 쿠키에 기본 7일 `Expires` 를 붙인다. 이 앱은 설정이 필요 없는 "브라우저 종료 시 로그아웃"을
+  보장하기 위해 `src/app/api/auth/[...nextauth]/route.ts` 에서 세션 토큰 쿠키의 `Expires`/`Max-Age` 를 제거한다.
+  (`__Secure-` 접두사와 청크 이름 `.0` `.1` 까지 처리. 다른 쿠키는 유지.)
+- `MultiplayerBridge` 는 `pagehide` 에 소켓을 닫고, `pageshow`(bfcache)에서 재연결한다.
+- 서버는 pingInterval 12s / pingTimeout 8s. close 패킷 유실 시 비정상 종료를 최대 ~20초 안에 감지한다.
+- 검증(로컬): 탭 닫기 28ms 내 제거, 네트워크 차단 7.6s 내 제거.
+- JWT 자체의 만료(7일)도 유지된다. 세션 쿠키는 "브라우저가 열려 있는 동안"만 존재한다.
 
 ## 소켓 인증
 
@@ -49,7 +59,10 @@ form-action 'self' https://accounts.google.com;
 ```
 
 추가 헤더: HSTS(2년, preload), `X-Content-Type-Options`, `Referrer-Policy`,
-`Permissions-Policy`(카메라/마이크/위치/결제/USB 차단), `COOP`, `X-DNS-Prefetch-Control`.
+`Permissions-Policy`(카메라/마이크/위치/결제/USB 차단), `COOP: same-origin`,
+`Cross-Origin-Resource-Policy: same-origin`, `X-Permitted-Cross-Domain-Policies: none`,
+`Origin-Agent-Cluster: ?1`, `X-DNS-Prefetch-Control`, `X-Powered-By` 숨김(`poweredByHeader: false`).
+인증 응답은 `Cache-Control: no-store` 로 어떤 캐시에도 남지 않는다.
 
 ## 입력 정화
 
@@ -63,6 +76,7 @@ form-action 'self' https://accounts.google.com;
 | 대상 | 정책 |
 | --- | --- |
 | 핸드셰이크 | 토큰 10, 0.15/s (분당 약 9회) |
+| 로그인/콜백 | middleware, IP당 10분 60회 (429) |
 | 이동 | 토큰 45, 30/s |
 | 채팅 | 토큰 3, 0.32/s + 1.5s 쿨다운 |
 | 장작 | 토큰 1, 0.4/s |

@@ -8,7 +8,7 @@
 
 | 이벤트 | payload | 서버 검증 | 결과 |
 | --- | --- | --- | --- |
-| `move` | `{ x, y, z, rot, pose, blanket }` | 유한수, 좌표 범위, 90ms당 1회(토큰 45/30s) | `player:move` 브로드캐스트, 존 갱신 |
+| `move` | `{ x, y, z, rot, pose, blanket }` | 유한수, 좌표 범위, 90ms당 1회(토큰 45/30s) | `players:move` 100ms 배치, 존 갱신 |
 | `chat:send` | `{ text }` | 존=`clearing`, 240자, 1.5s 쿨다운, 토큰 3/0.32s, 중복 15s, 링크 2개 이하 | `chat:message` 또는 `chat:denied` |
 | `fire:add` | 없음 | 존=`cabin`, 토큰 1/0.4s, 세기<0.995 | `fire:state` 또는 `fire:full` |
 
@@ -20,7 +20,9 @@
 4. 이전 위치와의 거리 < 8m 일 때만 이동 거리 누적(순간이동 치트 방지).
 5. pose 를 `idle|walk|sit|lie` 중 하나로 제한.
 6. zone 이 바뀌면 presence 브로드캐스트.
-7. 발신자 제외 `player:move` 브로드캐스트.
+7. `moveQueue` 에 넣고 100ms 마다 `flushMoves()` 로 묶어 전송.
+   - 수신자와 72m 이상 떨어진 플레이어는 제외
+   - `volatile`: backpressure 시 오래된 위치 패킷은 버림
 
 ## 서버 → 클라이언트
 
@@ -29,7 +31,7 @@
 | `welcome` | 접속 직후 | `{ self, players[], fire, chat[], presence, now, serverId }` |
 | `player:join` | 다른 사람 접속 | `PublicPlayer` |
 | `player:leave` | 다른 사람 퇴장 | `{ id }` |
-| `player:move` | 다른 사람 이동 | `{ id, x, y, z, rot, pose, blanket, zone }` |
+| `players:move` | 100ms 배치 | 수신자 기준 72m 이내의 `{ id, x, y, z, rot, pose, blanket, zone }[]` |
 | `presence` | 5초마다 + 존 변화 | `{ total, clearing, cabin, trail, max }` |
 | `fire:state` | 장작 추가/복원 | `{ logs, intensity }` |
 | `chat:message` | 빈터 채팅 | `{ id, userId, name, body, at, guest }` |
@@ -53,6 +55,22 @@
 
 `chat:denied(clearing_only)` 가 12회를 넘으면 서버가 연결을 끊는다(존 위조/스팸).
 
+## 접속 종료와 자동 로그아웃
+
+요구사항: **브라우저를 닫거나 컴퓨터가 꺼지면 서비스에서도 즉시 로그아웃**한다.
+
+1. NextAuth 세션 토큰 쿠키는 브라우저 세션 쿠키로 발급된다.
+   `src/app/api/auth/[...nextauth]/route.ts` 가 `next-auth.session-token`(또는
+   `__Secure-` 접두사/`.0` 청크 포함)의 `Expires`/`Max-Age` 를 제거한다.
+   → 브라우저 종료 시 쿠키가 사라진다. (JWT 자체의 7일 만료는 그대로다.)
+2. `MultiplayerBridge` 는 `pagehide` 에서 소켓을 즉시 닫고, `pageshow`(bfcache 복원)에서 다시 연결한다.
+3. `pagehide` 의 close 패킷이 유실되는 경우(컴퓨터 전원 차단 등)에는 서버가 pingInterval 12s +
+   pingTimeout 8s 로 끊어진 연결을 감지해 `disconnect` 를 실행한다.
+4. `disconnect` 에서 플레이어를 목록에서 제거하고 `player:leave` 브로드캐스트 + presence 갱신 +
+   방문 종료 시각/거리를 저장한다.
+
+측정값(로컬): 탭 닫기 약 28ms, 네트워크 차단 약 7.6s 내 접속자 목록에서 제거.
+
 ## 재접속
 
 - `socket.io-client` 는 무한 재접속(0.8s→8s 백오프).
@@ -64,7 +82,8 @@
 
 - 전역 40명(`LIMITS.maxPlayers`), IP당 8개(`maxConnectionsPerIp`).
 - 핸드셰이크 시도는 IP당 분당 약 9회(토큰 10, 0.15/s).
-- 위치 전송은 초당 약 30회로 제한되어 40명이어도 서버 부하가 작다.
+- 위치는 90ms 스로틀 + 변화 없으면 1.2s 간격. 서버는 100ms 마다 묶어 `players:move` 로 전송하고,
+  수신자 기준 72m 밖 플레이어는 보내지 않는다(`volatile`). 40명이어도 수신자당 초당 최대 10회.
 - 채팅 fan-out 은 빈터 인원에게만 발생한다.
 
 ## 확장 시 고려
