@@ -86,9 +86,15 @@ export function Sky() {
   const sunDir = useMemo(() => new THREE.Vector3(), []);
   const moonDir = useMemo(() => new THREE.Vector3(), []);
   const color = useMemo(() => new THREE.Color(), []);
+  // 태양/달/안개는 250ms 단위로만 갱신한다 (프레임당 유니폼 70+회 설정 방지).
+  // 카메라 추적(group 위치)만 매 프레임 처리한다.
+  const lastUpdate = useRef(0);
 
   useFrame(() => {
+    if (group.current) group.current.position.copy(camera.position);
     const now = useClock.getState().now || Date.now();
+    if (now - lastUpdate.current < 250) return;
+    lastUpdate.current = now;
     const state = sunState(currentKoreaClock(now));
     const colors = skyColors(state);
 
@@ -107,7 +113,6 @@ export function Sky() {
     uniforms.uSunDir.value.copy(sunDir);
     uniforms.uMoonDir.value.copy(moonDir);
 
-    if (group.current) group.current.position.copy(camera.position);
     if (sun.current) {
       sun.current.position.copy(sunDir).multiplyScalar(360);
       sun.current.quaternion.copy(camera.quaternion);

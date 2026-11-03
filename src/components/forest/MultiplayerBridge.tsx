@@ -99,9 +99,16 @@ export function MultiplayerBridge({ enabled = true }: { enabled?: boolean }) {
       useGame.getState().removePlayer(payload.id);
     };
 
-    const onMove = (payload: Partial<PublicPlayer> & { id?: string }) => {
-      if (!payload?.id) return;
-      useGame.getState().upsertPlayer(normalizePlayer(payload as PublicPlayer));
+    const onMoveBatch = (payload: unknown) => {
+      if (!Array.isArray(payload) || payload.length === 0) return;
+      const players: PublicPlayer[] = [];
+      for (const item of payload) {
+        if (!item || typeof item !== 'object') continue;
+        const id = (item as { id?: unknown }).id;
+        if (typeof id !== 'string' || id.length === 0) continue;
+        players.push(normalizePlayer(item as Partial<PublicPlayer> & { id: string }));
+      }
+      if (players.length > 0) useGame.getState().upsertPlayers(players);
     };
 
     const onPresence = (presence: Presence) => {
@@ -163,7 +170,7 @@ export function MultiplayerBridge({ enabled = true }: { enabled?: boolean }) {
     socket.on('welcome', onWelcome);
     socket.on('player:join', onJoin);
     socket.on('player:leave', onLeave);
-    socket.on('player:move', onMove);
+    socket.on('players:move', onMoveBatch);
     socket.on('presence', onPresence);
     socket.on('fire:state', onFire);
     socket.on('chat:message', onChat);
@@ -199,7 +206,7 @@ export function MultiplayerBridge({ enabled = true }: { enabled?: boolean }) {
       socket.off('welcome', onWelcome);
       socket.off('player:join', onJoin);
       socket.off('player:leave', onLeave);
-      socket.off('player:move', onMove);
+      socket.off('players:move', onMoveBatch);
       socket.off('presence', onPresence);
       socket.off('fire:state', onFire);
       socket.off('chat:message', onChat);

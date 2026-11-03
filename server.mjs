@@ -76,6 +76,18 @@ let chatHistory = [];
 let statsCache = { at: 0, data: null };
 let shuttingDown = false;
 
+/* ── 이동 브로드캐스트 배치 ─────────────────────
+ * 접속자가 늘어날수록 "모두에게 매 이동마다 전송"은 O(N²)이 된다.
+ * - 100ms 마다 모아 한 번만 전송 (초당 최대 10회)
+ * - 수신자와 72m 넘게 떨어진 플레이어는 건너뛴다
+ * - volatile: 네트워크가 밀리면 오래된 위치 패킷은 버린다
+ */
+const MOVE_FLUSH_MS = 100;
+const MOVE_VISIBLE_RANGE = 72;
+const MOVE_VISIBLE_RANGE_SQ = MOVE_VISIBLE_RANGE * MOVE_VISIBLE_RANGE;
+const moveQueue = new Set(); // socket.id
+let moveTimer = null;
+
 const fire = {
   logs: 2,
   intensity: 0.55,
@@ -252,16 +264,11 @@ io.on('connection', (socket) => {
       broadcastPresence();
     }
 
-    socket.broadcast.emit('player:move', {
-      id: player.id,
-      x: player.x,
-      y: player.y,
-      z: player.z,
-      rot: player.rot,
-      pose: player.pose,
-      blanket: player.blanket,
-      zone: player.zone,
-    });
+    moveQueue.add(socket.id);
+    if (!moveTimer) {
+      moveTimer = setTimeout(flushMoves, MOVE_FLUSH_MS);
+      moveTimer.unref?.();
+    }
   });
 
   socket.on('chat:send', (payload) => {
@@ -341,6 +348,7 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     const p = players.get(socket.id);
     players.delete(socket.id);
+    moveQueue.delete(socket.id);
     releaseConnectionIp(socket.data.ip, socket.data.counted);
     socket.broadcast.emit('player:leave', { id: socket.id });
     broadcastPresence();
@@ -476,6 +484,48 @@ function presence() {
 
 function broadcastPresence() {
   if (!shuttingDown) io.emit('presence', presence());
+}
+
+/**
+ * 100ms 동안 모인 이동을 수신자별로 묶어 한 번에 보낸다.
+ * 수신자 기준 72m 밖 플레이어는 보내지 않고, volatile 로 backpressure 시 폐기한다.
+ */
+function flushMoves() {
+  moveTimer = null;
+  if (moveQueue.size === 0) return;
+
+  const dirty = [];
+  for (const id of moveQueue) {
+    const p = players.get(id);
+    if (p) dirty.push(p);
+  }
+  moveQueue.clear();
+  if (dirty.length === 0) return;
+
+  for (const client of io.of('/').sockets.values()) {
+    const me = client.data.player;
+    if (!me) continue;
+
+    const batch = [];
+    for (const p of dirty) {
+      if (p.id === client.id) continue;
+      const dx = p.x - me.x;
+      const dz = p.z - me.z;
+      if (dx * dx + dz * dz > MOVE_VISIBLE_RANGE_SQ) continue;
+      batch.push({
+        id: p.id,
+        x: p.x,
+        y: p.y,
+        z: p.z,
+        rot: p.rot,
+        pose: p.pose,
+        blanket: p.blanket,
+        zone: p.zone,
+      });
+    }
+
+    if (batch.length > 0) client.volatile.emit('players:move', batch);
+  }
 }
 
 function zoneAt(x, z) {
@@ -615,6 +665,10 @@ async function shutdown(signal) {
   shuttingDown = true;
   console.log(`\n[server] ${signal} 수신, 정리 중...`);
   clearInterval(presenceTimer);
+  if (moveTimer) {
+    clearTimeout(moveTimer);
+    moveTimer = null;
+  }
   if (fireSaveTimer) {
     clearTimeout(fireSaveTimer);
     if (isDbConfigured()) await saveFire(publicFire()).catch(() => {});

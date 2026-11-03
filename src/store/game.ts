@@ -64,6 +64,7 @@ type GameState = {
   setPresence: (presence: Presence) => void;
   setPlayers: (players: PublicPlayer[]) => void;
   upsertPlayer: (player: PublicPlayer) => void;
+  upsertPlayers: (players: PublicPlayer[]) => void;
   removePlayer: (id: string) => void;
   appendChat: (message: ChatMessage) => void;
   setChat: (messages: ChatMessage[]) => void;
@@ -183,6 +184,18 @@ export const useGame = create<GameState>((set, get) => ({
       const next = state.players.slice();
       next[index] = { ...next[index], ...player };
       return { players: next };
+    }),
+  // 서버가 100ms 마다 묶어 보낸 위치를 한 번의 set 으로 반영한다.
+  // (플레이어 수만큼 set 을 호출하면 렌더가 N배로 늘어난다.)
+  upsertPlayers: (incoming) =>
+    set((state) => {
+      if (incoming.length === 0) return {};
+      const byId = new Map(state.players.map((p) => [p.id, p]));
+      for (const player of incoming) {
+        const prev = byId.get(player.id);
+        byId.set(player.id, prev ? { ...prev, ...player } : player);
+      }
+      return { players: Array.from(byId.values()) };
     }),
   removePlayer: (id) => set((state) => ({ players: state.players.filter((p) => p.id !== id) })),
   appendChat: (message) =>

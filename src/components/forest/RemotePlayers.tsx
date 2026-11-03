@@ -1,13 +1,66 @@
 'use client';
 
-/** 다른 접속자들 (위치 보간 + 걷기/앉기/눕기 자세) */
+/**
+ * 다른 접속자들 (위치 보간 + 걷기/앉기/눕기 자세)
+ * ── 성능 정책
+ * - 지오메트리/머티리얼을 접속자와 무관하게 한 번만 만든다.
+ * - 가까운 12명까지만 그리고 나머지는 건너뛴다.
+ * - 25m 밖에 있는 사람은 그림자를 끕니다.
+ */
 
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useGame } from '@/store/game';
+import { playerState } from '@/lib/player-state';
 import type { PublicPlayer } from '@/types/game';
 import { plaidTexture } from '@/lib/textures';
+
+const MAX_VISIBLE = 12;
+const VISIBLE_DISTANCE = 72;
+const NEAR_SHADOW_DISTANCE = 25;
+const SELECT_INTERVAL = 0.4; // 초
+
+const GEO = {
+  leg: new THREE.CapsuleGeometry(0.105, 0.52, 4, 8),
+  foot: new THREE.BoxGeometry(0.2, 0.14, 0.34),
+  torso: new THREE.CapsuleGeometry(0.24, 0.5, 5, 10),
+  pack: new THREE.BoxGeometry(0.38, 0.42, 0.2),
+  packFlap: new THREE.BoxGeometry(0.24, 0.16, 0.06),
+  arm: new THREE.CapsuleGeometry(0.075, 0.4, 4, 8),
+  hand: new THREE.SphereGeometry(0.075, 8, 6),
+  head: new THREE.SphereGeometry(0.19, 16, 12),
+  hair: new THREE.SphereGeometry(0.2, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.62),
+  eye: new THREE.SphereGeometry(0.022, 6, 5),
+  blanket: new THREE.BoxGeometry(0.52, 0.1, 0.46),
+};
+
+const pantsMat = new THREE.MeshStandardMaterial({ color: '#4e5f63', roughness: 0.95 });
+const shoeMat = new THREE.MeshStandardMaterial({ color: '#3b3128', roughness: 1 });
+const packMat = new THREE.MeshStandardMaterial({ color: '#7c5f3f', roughness: 1 });
+const packFlapMat = new THREE.MeshStandardMaterial({ color: '#6a4e33', roughness: 1 });
+const skinMat = new THREE.MeshStandardMaterial({ color: '#e2b48f', roughness: 0.85 });
+const handMat = new THREE.MeshStandardMaterial({ color: '#e2b48f', roughness: 0.9 });
+const hairMat = new THREE.MeshStandardMaterial({ color: '#3a2c22', roughness: 1 });
+const eyeMat = new THREE.MeshStandardMaterial({ color: '#26201b', roughness: 0.6 });
+
+/* 몸통/팔 색은 서버 팔레트(8색)로 제한되므로 그대로 공유한다. */
+const clothMats = new Map<string, THREE.MeshStandardMaterial>();
+function clothMaterial(color: string) {
+  const cached = clothMats.get(color);
+  if (cached) return cached;
+  const created = new THREE.MeshStandardMaterial({ color, roughness: 0.92 });
+  clothMats.set(color, created);
+  return created;
+}
+
+let plaidMat: THREE.MeshStandardMaterial | null = null;
+function blanketMaterial() {
+  if (!plaidMat) {
+    plaidMat = new THREE.MeshStandardMaterial({ map: plaidTexture(), roughness: 1 });
+  }
+  return plaidMat;
+}
 
 function nameTexture(name: string, color: string, guest: boolean) {
   const canvas = document.createElement('canvas');
@@ -51,7 +104,7 @@ function nameTexture(name: string, color: string, guest: boolean) {
   return texture;
 }
 
-function RemotePlayer({ player }: { player: PublicPlayer }) {
+function RemotePlayer({ player, near }: { player: PublicPlayer; near: boolean }) {
   const root = useRef<THREE.Group>(null);
   const body = useRef<THREE.Group>(null);
   const leftArm = useRef<THREE.Group>(null);
@@ -61,7 +114,7 @@ function RemotePlayer({ player }: { player: PublicPlayer }) {
   const phase = useRef(Math.random() * Math.PI * 2);
   const target = useRef({ x: player.x, y: player.y, z: player.z, rot: player.rot });
   const current = useRef({ rot: player.rot });
-  const plaid = useMemo(() => plaidTexture(), []);
+  const cloth = useMemo(() => clothMaterial(player.color), [player.color]);
   const label = useMemo(
     () => nameTexture(player.name, player.color, player.guest),
     [player.name, player.color, player.guest],
@@ -124,97 +177,48 @@ function RemotePlayer({ player }: { player: PublicPlayer }) {
 
   const seated = player.pose === 'sit';
   const lying = player.pose === 'lie';
-  const skin = '#e2b48f';
+  const blanket = blanketMaterial();
 
   return (
     <group ref={root} position={[player.x, player.y, player.z]} rotation-y={player.rot}>
       <group ref={body}>
         {/* 다리 */}
         <group ref={leftLeg} position={[-0.16, 0.78, 0]}>
-          <mesh position={[0, -0.36, 0]} castShadow>
-            <capsuleGeometry args={[0.105, 0.52, 4, 8]} />
-            <meshStandardMaterial color="#4e5f63" roughness={0.95} />
-          </mesh>
-          <mesh position={[0, -0.72, 0.06]} castShadow>
-            <boxGeometry args={[0.2, 0.14, 0.34]} />
-            <meshStandardMaterial color="#3b3128" roughness={1} />
-          </mesh>
+          <mesh position={[0, -0.36, 0]} geometry={GEO.leg} material={pantsMat} castShadow={near} />
+          <mesh position={[0, -0.72, 0.06]} geometry={GEO.foot} material={shoeMat} castShadow={near} />
         </group>
         <group ref={rightLeg} position={[0.16, 0.78, 0]}>
-          <mesh position={[0, -0.36, 0]} castShadow>
-            <capsuleGeometry args={[0.105, 0.52, 4, 8]} />
-            <meshStandardMaterial color="#4e5f63" roughness={0.95} />
-          </mesh>
-          <mesh position={[0, -0.72, 0.06]} castShadow>
-            <boxGeometry args={[0.2, 0.14, 0.34]} />
-            <meshStandardMaterial color="#3b3128" roughness={1} />
-          </mesh>
+          <mesh position={[0, -0.36, 0]} geometry={GEO.leg} material={pantsMat} castShadow={near} />
+          <mesh position={[0, -0.72, 0.06]} geometry={GEO.foot} material={shoeMat} castShadow={near} />
         </group>
 
         {/* 몸통 */}
-        <mesh position={[0, 1.16, 0]} castShadow>
-          <capsuleGeometry args={[0.24, 0.5, 5, 10]} />
-          <meshStandardMaterial color={player.color} roughness={0.92} />
-        </mesh>
+        <mesh position={[0, 1.16, 0]} geometry={GEO.torso} material={cloth} castShadow={near} />
         {/* 배낭 */}
-        <mesh position={[0, 1.2, 0.24]} castShadow>
-          <boxGeometry args={[0.38, 0.42, 0.2]} />
-          <meshStandardMaterial color="#7c5f3f" roughness={1} />
-        </mesh>
-        <mesh position={[0, 1.22, 0.35]} castShadow>
-          <boxGeometry args={[0.24, 0.16, 0.06]} />
-          <meshStandardMaterial color="#6a4e33" roughness={1} />
-        </mesh>
+        <mesh position={[0, 1.2, 0.24]} geometry={GEO.pack} material={packMat} castShadow={near} />
+        <mesh position={[0, 1.22, 0.35]} geometry={GEO.packFlap} material={packFlapMat} castShadow={near} />
 
         {/* 팔 */}
         <group ref={leftArm} position={[-0.32, 1.36, 0]}>
-          <mesh position={[0, -0.24, 0]} castShadow>
-            <capsuleGeometry args={[0.075, 0.4, 4, 8]} />
-            <meshStandardMaterial color={player.color} roughness={0.92} />
-          </mesh>
-          <mesh position={[0, -0.48, 0]} castShadow>
-            <sphereGeometry args={[0.075, 8, 6]} />
-            <meshStandardMaterial color={skin} roughness={0.9} />
-          </mesh>
+          <mesh position={[0, -0.24, 0]} geometry={GEO.arm} material={cloth} castShadow={near} />
+          <mesh position={[0, -0.48, 0]} geometry={GEO.hand} material={handMat} castShadow={near} />
         </group>
         <group ref={rightArm} position={[0.32, 1.36, 0]}>
-          <mesh position={[0, -0.24, 0]} castShadow>
-            <capsuleGeometry args={[0.075, 0.4, 4, 8]} />
-            <meshStandardMaterial color={player.color} roughness={0.92} />
-          </mesh>
-          <mesh position={[0, -0.48, 0]} castShadow>
-            <sphereGeometry args={[0.075, 8, 6]} />
-            <meshStandardMaterial color={skin} roughness={0.9} />
-          </mesh>
+          <mesh position={[0, -0.24, 0]} geometry={GEO.arm} material={cloth} castShadow={near} />
+          <mesh position={[0, -0.48, 0]} geometry={GEO.hand} material={handMat} castShadow={near} />
         </group>
 
         {/* 머리 */}
         <group position={[0, 1.68, 0]}>
-          <mesh castShadow>
-            <sphereGeometry args={[0.19, 16, 12]} />
-            <meshStandardMaterial color={skin} roughness={0.85} />
-          </mesh>
-          <mesh position={[0, 0.06, 0.03]} castShadow>
-            <sphereGeometry args={[0.2, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.62]} />
-            <meshStandardMaterial color="#3a2c22" roughness={1} />
-          </mesh>
-          {/* 눈 (살짝) */}
-          <mesh position={[-0.07, 0.02, -0.17]}>
-            <sphereGeometry args={[0.022, 6, 5]} />
-            <meshStandardMaterial color="#26201b" roughness={0.6} />
-          </mesh>
-          <mesh position={[0.07, 0.02, -0.17]}>
-            <sphereGeometry args={[0.022, 6, 5]} />
-            <meshStandardMaterial color="#26201b" roughness={0.6} />
-          </mesh>
+          <mesh geometry={GEO.head} material={skinMat} castShadow={near} />
+          <mesh position={[0, 0.06, 0.03]} geometry={GEO.hair} material={hairMat} castShadow={near} />
+          <mesh position={[-0.07, 0.02, -0.17]} geometry={GEO.eye} material={eyeMat} />
+          <mesh position={[0.07, 0.02, -0.17]} geometry={GEO.eye} material={eyeMat} />
         </group>
 
         {/* 무릎담요 */}
-        {(player.blanket || seated) && player.blanket && (
-          <mesh position={[0, seated || lying ? 1.06 : 0.86, -0.06]} castShadow>
-            <boxGeometry args={[0.52, 0.1, 0.46]} />
-            <meshStandardMaterial map={plaid} roughness={1} />
-          </mesh>
+        {player.blanket && (
+          <mesh position={[0, seated || lying ? 1.06 : 0.86, -0.06]} geometry={GEO.blanket} material={blanket} castShadow={near} />
         )}
       </group>
 
@@ -235,13 +239,51 @@ function RemotePlayer({ player }: { player: PublicPlayer }) {
   );
 }
 
+type VisibleEntry = { id: string; near: boolean };
+
+function sameVisible(prev: VisibleEntry[], next: VisibleEntry[]) {
+  if (prev.length !== next.length) return false;
+  for (let i = 0; i < prev.length; i++) {
+    if (prev[i].id !== next[i].id || prev[i].near !== next[i].near) return false;
+  }
+  return true;
+}
+
 export function RemotePlayers() {
   const players = useGame((s) => s.players);
+  const [visible, setVisible] = useState<VisibleEntry[]>([]);
+  const lastSelect = useRef(Number.NEGATIVE_INFINITY);
+
+  useFrame((state) => {
+    if (state.clock.elapsedTime - lastSelect.current < SELECT_INTERVAL) return;
+    lastSelect.current = state.clock.elapsedTime;
+
+    const px = playerState.x;
+    const pz = playerState.z;
+    const scored: { id: string; d2: number }[] = [];
+    for (const p of players) {
+      const dx = p.x - px;
+      const dz = p.z - pz;
+      const d2 = dx * dx + dz * dz;
+      if (d2 > VISIBLE_DISTANCE * VISIBLE_DISTANCE) continue;
+      scored.push({ id: p.id, d2 });
+    }
+    scored.sort((a, b) => a.d2 - b.d2);
+    const next = scored.slice(0, MAX_VISIBLE).map((s) => ({
+      id: s.id,
+      near: s.d2 <= NEAR_SHADOW_DISTANCE * NEAR_SHADOW_DISTANCE,
+    }));
+    setVisible((prev) => (sameVisible(prev, next) ? prev : next));
+  });
+
+  const byId = useMemo(() => new Map(players.map((p) => [p.id, p])), [players]);
+
   return (
     <group>
-      {players.map((player) => (
-        <RemotePlayer key={player.id} player={player} />
-      ))}
+      {visible.map(({ id, near }) => {
+        const player = byId.get(id);
+        return player ? <RemotePlayer key={id} player={player} near={near} /> : null;
+      })}
     </group>
   );
 }

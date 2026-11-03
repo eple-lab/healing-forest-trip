@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import * as THREE from 'three';
 import { START } from '@/lib/world';
@@ -61,17 +61,27 @@ function Scene() {
 export function ForestExperience({ user }: { user: ForestUser }) {
   const setUser = useGame((s) => s.setUser);
   const visitCount = useGame((s) => s.visitCount);
+  // 숨겨진 탭은 렌더를 멈춰 배터리/GPU 를 아낀다. (Chrome 은 rAF 도 제한한다.)
+  const [frameloop, setFrameloop] = useState<'always' | 'never'>('always');
 
   useEffect(() => {
     setUser(user);
   }, [setUser, user]);
+
+  useEffect(() => {
+    const onVisibility = () => setFrameloop(document.hidden ? 'never' : 'always');
+    onVisibility();
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, []);
 
   return (
     <div className="forest-app">
       <MultiplayerBridge />
       <Canvas
         shadows
-        dpr={[1, 1.75]}
+        dpr={[1, 1.5]}
+        frameloop={frameloop}
         camera={{ position: [START.x, 1.7, START.z], fov: 68, near: 0.08, far: 720 }}
         gl={{
           antialias: true,

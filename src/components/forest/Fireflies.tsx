@@ -69,6 +69,8 @@ export function Fireflies() {
     return geo;
   }, [data.length]);
 
+  const lastUpdate = useRef(0);
+
   useFrame((state) => {
     const night = sunState(currentKoreaClock(useClock.getState().now || Date.now())).night;
     const group = points.current;
@@ -78,7 +80,10 @@ export function Fireflies() {
     group.visible = visible;
     if (!visible) return;
     material.opacity = Math.min(0.95, (night - 0.15) * 1.4);
+    // 20fps 로 충분하다. frustumCulled=false 이므로 bounding sphere 도 계산하지 않는다.
     const t = state.clock.elapsedTime;
+    if (t - lastUpdate.current < 0.05) return;
+    lastUpdate.current = t;
     const attr = group.geometry.getAttribute('position') as THREE.BufferAttribute;
     for (let i = 0; i < data.length; i++) {
       const fly = data[i];
@@ -93,7 +98,6 @@ export function Fireflies() {
       attr.setZ(i, fly.z + Math.cos(t * fly.speed * 0.9 + fly.phase) * fly.radius);
     }
     attr.needsUpdate = true;
-    geometry.computeBoundingSphere();
   });
 
   return (
