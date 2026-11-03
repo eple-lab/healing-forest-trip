@@ -50,6 +50,12 @@ function tooManyRequests() {
  */
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // 이 앱은 next/image 를 쓰지 않는다. 이미지 최적화 엔드포인트를 외부에서 호출할 수 없게 막는다.
+  if (pathname.startsWith('/_next/image')) {
+    return new NextResponse('Not Found', { status: 404, headers: { 'cache-control': 'no-store' } });
+  }
+
   if (
     pathname.startsWith('/api/auth/callback') ||
     pathname === '/api/auth/signin'

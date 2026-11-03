@@ -2,11 +2,8 @@
 const nextConfig = {
   reactStrictMode: false,
   poweredByHeader: false,
-  images: {
-    remotePatterns: [
-      { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
-    ],
-  },
+  // next/image 를 사용하지 않는다. 미들웨어에서 /_next/image 자체를 404 로 막는다.
+  images: { unoptimized: true },
   eslint: {
     ignoreDuringBuilds: true,
   },
