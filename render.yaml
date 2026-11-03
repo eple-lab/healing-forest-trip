@@ -1,0 +1,41 @@
+# Render Blueprint
+# ─────────────────────────────────────────────
+# 1) Neon 에서 프로젝트를 만들고 DATABASE_URL 을 복사합니다.
+# 2) Render Dashboard → New → Blueprint → 이 저장소를 선택합니다.
+# 3) 아래 sync:false 값(NEXTAUTH_SECRET, DATABASE_URL, Google 키)을 입력합니다.
+# 4) 배포 후 Google OAuth 리디렉션 URI 에 운영 주소를 추가합니다.
+services:
+  - type: web
+    name: healing-forest-trip
+    runtime: node
+    plan: starter
+    region: singapore
+    branch: main
+    autoDeploy: true
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /healthz
+    numInstances: 1
+    envVars:
+      - key: NODE_VERSION
+        value: 20.11.1
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_TELEMETRY_DISABLED
+        value: "1"
+      - key: NEXTAUTH_SECRET
+        generateValue: true
+      # Render 가 제공하는 외부 URL 을 NextAuth 가 자동으로 사용합니다.
+      # 별도 도메인을 쓰면 NEXTAUTH_URL 을 직접 지정하세요.
+      - key: ALLOW_GUEST_LOGIN
+        value: "true"
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_SSL_CA
+        sync: false
+      - key: PG_POOL_MAX
+        value: "5"
