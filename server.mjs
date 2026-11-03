@@ -43,7 +43,48 @@ const getToken = nextAuthJwt.getToken ?? nextAuthJwt.default?.getToken;
 const dev = process.env.NODE_ENV !== 'production';
 const port = Number(process.env.PORT ?? 3000);
 const hostname = '0.0.0.0';
-const LIMITS = WORLD.limits;
+
+/* ── 서버 유형(인스턴스)별 동시 접속 정원 ─────────────────
+ * SERVER_TIER 로 인스턴스 크기를 지정한다.
+ *   small  → 40명  (기본, 공유 CPU / 512MB~1GB)
+ *   medium → 120명 (1 vCPU / 2GB 급)
+ *   large  → 250명 (2 vCPU / 4GB 급)
+ * MAX_PLAYERS 를 지정하면 SERVER_TIER 보다 우선한다.
+ * 어떤 값이든 2~500명 범위로 제한한다(단일 인스턴스 보호).
+ */
+const RAW_TIER = String(process.env.SERVER_TIER ?? '').trim().toLowerCase();
+const TIER_DEFAULTS = { small: 40, medium: 120, large: 250 };
+const tierFallback = TIER_DEFAULTS[RAW_TIER];
+if (RAW_TIER && tierFallback === undefined) {
+  console.warn(`[env] SERVER_TIER="${RAW_TIER}" 은 small|medium|large 중 하나여야 합니다. 기본값을 사용합니다.`);
+}
+const tierDefault = tierFallback ?? WORLD.limits.maxPlayers;
+
+function intFromEnv(name, fallback, { min, max }) {
+  const raw = process.env[name];
+  if (raw === undefined || raw === '') return fallback;
+  const value = Number(raw);
+  if (!Number.isFinite(value)) {
+    console.warn(`[env] ${name} 값이 숫자가 아닙니다("${raw}"). 기본값(${fallback})을 사용합니다.`);
+    return fallback;
+  }
+  const clamped = Math.min(max, Math.max(min, Math.floor(value)));
+  if (clamped !== Math.floor(value)) {
+    console.warn(`[env] ${name}=${value} 은 ${min}~${max} 범위를 벗어나 ${clamped} 로 제한했습니다.`);
+  }
+  return clamped;
+}
+
+const LIMITS = {
+  ...WORLD.limits,
+  maxPlayers: intFromEnv('MAX_PLAYERS', tierDefault, { min: 2, max: 500 }),
+  maxConnectionsPerIp: intFromEnv('MAX_CONNECTIONS_PER_IP', WORLD.limits.maxConnectionsPerIp, {
+    min: 1,
+    max: 64,
+  }),
+};
+
+const MOVE_VISIBLE_RANGE = intFromEnv('MOVE_VISIBLE_RANGE', 72, { min: 16, max: 200 });
 
 // Render Web Service 는 외부 URL 을 RENDER_EXTERNAL_URL 로 제공한다.
 // NEXTAUTH_URL 이 비어 있으면 그대로 사용해 리다이렉트/쿠키 설정이 어긋나지 않게 한다.
@@ -83,7 +124,6 @@ let shuttingDown = false;
  * - volatile: 네트워크가 밀리면 오래된 위치 패킷은 버린다
  */
 const MOVE_FLUSH_MS = 100;
-const MOVE_VISIBLE_RANGE = 72;
 const MOVE_VISIBLE_RANGE_SQ = MOVE_VISIBLE_RANGE * MOVE_VISIBLE_RANGE;
 const moveQueue = new Set(); // socket.id
 let moveTimer = null;
@@ -658,6 +698,7 @@ presenceTimer.unref?.();
 server.listen(port, hostname, () => {
   console.log(`\n🌲 숲속여행 서버가 열렸습니다  http://localhost:${port}`);
   console.log(`   mode=${dev ? 'development' : 'production'}  db=${isDbConfigured() ? 'on' : 'off'}`);
+  console.log(`   tier=${RAW_TIER || 'default'}  capacity=${LIMITS.maxPlayers}명  moveVisibleRange=${MOVE_VISIBLE_RANGE}m`);
 });
 
 async function shutdown(signal) {
