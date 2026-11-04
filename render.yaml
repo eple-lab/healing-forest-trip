@@ -8,8 +8,8 @@ services:
   - type: web
     name: healing-forest-trip
     runtime: node
-    plan: starter
-    region: singapore
+    plan: free                 # 빼면 유료(0.5c-512mb)로 만들어진다
+    region: singapore          # 아시아/태평양: 싱가포르(서울과 제일 가까운 곳). 만든 뒤에는 바꿀 수 없다
     branch: main
     autoDeploy: true
     buildCommand: npm ci && npm run build
@@ -18,7 +18,7 @@ services:
     numInstances: 1
     envVars:
       - key: NODE_VERSION
-        value: 20.11.1
+        value: 20.11.1 ## package.json engines
       - key: NODE_ENV
         value: production
       - key: NEXT_TELEMETRY_DISABLED
