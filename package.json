@@ -13,7 +13,7 @@
     "db:prune": "node scripts/prune.mjs"
   },
   "engines": {
-    "node": ">=20.11"
+    "node": ">=24"
   },
   "dependencies": {
     "@react-three/drei": "^9.122.0",

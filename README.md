@@ -17,7 +17,7 @@
 ## 빠른 시작
 
 ```bash
-# Node.js 20.11 이상
+# Node.js 24 이상
 npm install
 
 copy .env.example .env.local   # Windows

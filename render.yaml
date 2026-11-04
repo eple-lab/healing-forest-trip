@@ -20,7 +20,7 @@ services:
     numInstances: 1
     envVars:
       - key: NODE_VERSION
-        value: 20.11.1 ## package.json engines
+        value: 24.22.1         # LTS 정확한 버전 고정(로컬 검증 버전). Node 20 은 2026-04-30 지원 종료
       - key: NODE_ENV
         value: production      # 실행 설정. server.mjs 가 이 값으로 운영 모드와 부팅 검증을 켠다
       - key: NEXT_TELEMETRY_DISABLED

@@ -91,7 +91,7 @@ DATABASE_URL="postgresql://..." npm run db:migrate
 | Health check | `/healthz` |
 | Instances | **1** (고정) |
 | `NEXTAUTH_SECRET` | `generateValue: true` |
-| `NODE_VERSION` | 20.11.1 |
+| `NODE_VERSION` | 24.22.1 |
 | `ALLOW_GUEST_LOGIN` | `true` |
 
 ### 방법 B — 수동 Web Service
@@ -120,7 +120,7 @@ DATABASE_URL="postgresql://..." npm run db:migrate
 | `PG_POOL_MAX` | 선택 | 기본 5 |
 | `APP_ORIGIN` / `ALLOWED_ORIGINS` | 선택 | 추가 허용 오리진 |
 | `NODE_ENV` | ✅ | `render.yaml` 에서 `production` 으로 설정. **빌드에도 적용**되므로 Build 명령에 `--include=dev` 가 필요 |
-| `NODE_VERSION` | ✅ | 20.11.1 |
+| `NODE_VERSION` | ✅ | 24.22.1 (Node 20 은 2026-04-30 지원 종료) |
 
 ### NEXTAUTH_URL 자동 설정
 

@@ -199,7 +199,7 @@
 ### `Module not found`
 
 - `npm ci` 재실행.
-- Node 버전 확인(`>=20.11`).
+- Node 버전 확인(`>=24`).
 - 경로 별칭 `@/` 는 `tsconfig.json` 의 `paths` 를 따른다.
 
 ### `NODE_ENV=production` 빌드에서 `@/` 경로를 못 찾음 (2026-11-04)
