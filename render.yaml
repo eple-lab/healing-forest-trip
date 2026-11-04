@@ -19,8 +19,6 @@ services:
     envVars:
       - key: NODE_VERSION
         value: 20.11.1 ## package.json engines
-      - key: NODE_ENV
-        value: production
       - key: NEXT_TELEMETRY_DISABLED
         value: "1"
       - key: NEXTAUTH_SECRET
