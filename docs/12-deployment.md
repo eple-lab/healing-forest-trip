@@ -86,7 +86,7 @@ DATABASE_URL="postgresql://..." npm run db:migrate
 | Runtime | Node |
 | Plan | starter |
 | Region | singapore |
-| Build | `npm ci && npm run build` |
+| Build | `npm ci --include=dev && npm run build && npm prune --omit=dev` |
 | Start | `npm start` |
 | Health check | `/healthz` |
 | Instances | **1** (고정) |
@@ -98,7 +98,8 @@ DATABASE_URL="postgresql://..." npm run db:migrate
 
 1. **New** → **Web Service** → 저장소 선택.
 2. Environment: **Node**.
-3. Build Command: `npm ci && npm run build`
+3. Build Command: `npm ci --include=dev && npm run build && npm prune --omit=dev`
+   (이유: [14 · 문제 해결](14-troubleshooting.md)의 "`NODE_ENV=production` 빌드에서 `@/` 경로를 못 찾음")
 4. Start Command: `npm start`
 5. Health Check Path: `/healthz`
 6. **Instances: 1** 로 설정한다(소켓 상태가 프로세스 로컬).
@@ -118,7 +119,7 @@ DATABASE_URL="postgresql://..." npm run db:migrate
 | `PG_NO_SSL` | 선택 | `true` 면 SSL 미사용(권장 안 함) |
 | `PG_POOL_MAX` | 선택 | 기본 5 |
 | `APP_ORIGIN` / `ALLOWED_ORIGINS` | 선택 | 추가 허용 오리진 |
-| `NODE_ENV` | ✅ | Render 가 `production` 으로 설정 |
+| `NODE_ENV` | ✅ | `render.yaml` 에서 `production` 으로 설정. **빌드에도 적용**되므로 Build 명령에 `--include=dev` 가 필요 |
 | `NODE_VERSION` | ✅ | 20.11.1 |
 
 ### NEXTAUTH_URL 자동 설정

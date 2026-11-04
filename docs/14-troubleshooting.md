@@ -16,6 +16,7 @@
 | 소리가 안 남 | 제스처 전/음소거/자동재생 | 시작 버튼, `M` |
 | DB 저장 안 됨 | `DATABASE_URL` 없음/마이그레이션 | `/healthz` `db`, 로그 |
 | 스타일이 깨짐 | CSP 로 인라인 차단 | 콘솔 CSP 위반 |
+| 배포 빌드만 `Can't resolve '@/...'` | `NODE_ENV=production` 으로 devDependencies 미설치 | 빌드 로그의 `added N packages` 개수 |
 
 ## 1. 서버가 시작되지 않는다
 
@@ -200,6 +201,27 @@
 - `npm ci` 재실행.
 - Node 버전 확인(`>=20.11`).
 - 경로 별칭 `@/` 는 `tsconfig.json` 의 `paths` 를 따른다.
+
+### `NODE_ENV=production` 빌드에서 `@/` 경로를 못 찾음 (2026-11-04)
+
+증상: 로컬은 되는데 Render 빌드만 `Module not found: Can't resolve '@/lib/auth'`. 로그에 `added 152 packages`(dev 포함이면 약 450개).
+
+원인:
+1. `NODE_ENV=production` 은 빌드 단계에도 적용되고, 이때 npm 은 devDependencies 를 설치하지 않는다(npm `omit` 기본값).
+2. `typescript` 가 없으면 Next 14 가 `tsconfig.json` 의 `paths` 를 읽지 않아 `@/` 를 풀지 못한다.
+
+해결(현재 `render.yaml`): `npm ci --include=dev && npm run build && npm prune --omit=dev`.
+빌드 도구는 빌드에서만 쓰고, 실행 환경에는 운영용 패키지만 남긴다(12-Factor "Build, release, run" 분리).
+
+하지 않은 방법과 이유:
+- `typescript` 를 dependencies 로 옮기기: 빌드는 되지만 `@types/*` 가 다른 패키지(drei, fiber, socket.io)를 통해 **우연히** 설치돼서 통과한 것이다. 컴파일러가 운영 패키지로 분류되고, `npm audit --omit=dev` 로 운영 취약점만 보는 기준도 흐려진다.
+- `NODE_ENV` 빼기: 빌드는 되지만 실행 환경에 dev 도구가 모두 남는다.
+
+배운 점:
+- 로컬에서 같은 조건(`NODE_ENV=production npm ci && npm run build`)으로 **먼저 재현**하면 추측을 줄일 수 있다.
+- "되는 이유"까지 확인한다. 간접 의존성 덕분에 되는 것은 언젠가 깨진다. 코드가 직접 쓰는 패키지는 직접 선언한다(그래서 `cross-env` 를 dependencies 로 옮김).
+- `render.yaml` 에서 환경변수 줄을 지워도 Render 서비스에 이미 있는 값은 남을 수 있다. Environment 탭을 확인한다.
+- 배포 로그의 `Checking out commit` 으로 어느 커밋이 배포됐는지 먼저 확인한다.
 
 ### 빌드는 되는데 런타임 오류
 

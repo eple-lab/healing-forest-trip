@@ -12,13 +12,17 @@ services:
     region: singapore          # 아시아/태평양: 싱가포르(서울과 제일 가까운 곳). 만든 뒤에는 바꿀 수 없다
     branch: main
     autoDeploy: true
-    buildCommand: npm ci && npm run build
+    # NODE_ENV=production 은 빌드에도 적용되어 npm ci 가 devDependencies 를 빼므로 --include=dev 로 받는다.
+    # 빌드가 끝나면 prune 으로 dev 패키지(typescript, eslint 등)를 지워 실행 환경에는 운영용만 남긴다.
+    buildCommand: npm ci --include=dev && npm run build && npm prune --omit=dev
     startCommand: npm start
     healthCheckPath: /healthz
     numInstances: 1
     envVars:
       - key: NODE_VERSION
         value: 20.11.1 ## package.json engines
+      - key: NODE_ENV
+        value: production      # 실행 설정. server.mjs 가 이 값으로 운영 모드와 부팅 검증을 켠다
       - key: NEXT_TELEMETRY_DISABLED
         value: "1"
       - key: NEXTAUTH_SECRET
