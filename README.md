@@ -87,9 +87,9 @@
 | --- | --- |
 | 실행 가능한 웹 서비스 | https://healing-forest-trip.onrender.com/ |
 | 기획 문서 | [PRD.md](PRD.md) |
-| 회고록 | `retrospective.md` (작성 예정) |
+| 회고록 | [retrospective.md](retrospective.md) |
 | 시연 영상 | (준비 중) |
-| AI와 나눈 대화 요약 | [docs/conversation-summary.md](docs/conversation-summary.md) |
+| AI와 나눈 대화 요약 | [docs/conversation-summary.md](docs/conversation-summary.md) (⭐ 가장 효과적이었던 프롬프트 포함) |
 
 ## 빠른 시작
 

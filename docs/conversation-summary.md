@@ -101,3 +101,12 @@ node scripts/smoke-character.mjs    # 캐릭터/알림판 API
 node scripts/security-smoke.mjs     # 헤더/소켓/세션
 node scripts/security-ratelimit.mjs # 로그인 60회/10분 제한 확인
 ```
+
+## 9. ⭐ 가장 효과적이었던 프롬프트
+
+> **"단계 단계별로 커밋하고 있어?"**
+
+- 그때까지 AI는 코드를 계속 쓰고 있었지만 커밋은 하나도 하지 않은 상태였다. 무엇이 바뀌었는지 사람이 확인할 방법이 없었다.
+- 이 질문 다음부터 기능별 커밋(기본 구현 → 자동 로그아웃 → 성능 → 보안 …)으로 나뉘었고, AI의 작업 결과를 하나씩 볼 수 있게 됐다.
+- 포인트는 세세한 지시(뒤의 19개 항목 같은)가 아니라, **AI가 놓치고 있던 행동을 짚은 것**이다. (eple)
+- 회고: [retrospective.md](../retrospective.md)
