@@ -17,5 +17,3 @@ chat_backup*.json
 
 # Claude가 opencode에 넘기는 이슈 초안 (공개하지 않음)
 .issues/
-# opencode 설정
-AGENTS.md
