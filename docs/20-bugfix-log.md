@@ -32,3 +32,17 @@
 - 커밋: fix: 1층에서 2층 창가 알림이 뜨던 문제 (BUG-02)
 - 이슈 번호:
 - 재발 방지 테스트: `docs/13-testing.md` "C. 앉기/눕기" — 1층에 있을 때 2층 대상(큰 창가, 침대)의 알림이 뜨지 않고, 2층에 올라가면 뜬다. 2층에서 1층 가구 알림이 뜨지 않는다.
+
+## BUG-03 다른 탭에 갔다 오면 반딧불이가 멈춤
+
+- 발견: 2026-11-05 수동 테스트
+- 이슈:
+- 증상: 크롬에서 다른 탭에 갔다 돌아오면 소리와 다른 화면은 다시 움직이는데 반딧불이만 멈춰 있다(밤). 원격 플레이어 목록도 같은 시간 동안 다시 골라지지 않는 것으로 보인다(코드 추정, 화면 확인 안 함).
+- 원인: 탭이 숨겨지면 `frameloop`을 `'never'`, 돌아오면 `'always'`로 바꾼다(`src/components/forest/ForestExperience.tsx:102-107`). 설치된 `@react-three/fiber` 8.17.10의 `setFrameloop`은 바꿀 때마다 `clock.elapsedTime = 0`으로 되돌린다(`node_modules/@react-three/fiber/dist/events-321b05fb.esm.js:1379-1391`). 반딧불이는 `state.clock.elapsedTime`을 `lastUpdate`와 비교해 20fps로 갱신하는데(`Fireflies.tsx:84-86`), 돌아온 뒤 `t`는 0부터 다시 시작하고 `lastUpdate`는 이전 큰 값이라, `t`가 그 값을 넘을 때까지(탭을 떠나 있던 시간만큼) 갱신하지 않았다. `RemotePlayers.tsx`의 `lastSelect`도 같은 방식이었다.
+- 수정:
+  - `src/components/forest/Fireflies.tsx:84-89` — 비교 앞에 `if (t < lastUpdate.current) lastUpdate.current = t - 0.05;`를 넣어 시계가 되돌아간 경우 기준점을 당긴다.
+  - `src/components/forest/RemotePlayers.tsx:443-447` — 같은 방식으로 `if (state.clock.elapsedTime < lastSelect.current) lastSelect.current = Number.NEGATIVE_INFINITY;`를 넣는다.
+  - `ForestExperience.tsx`의 frameloop 전환은 그대로 둔다(탭 숨김 때 멈추는 건 의도). `Lighting.tsx`, `Sky.tsx`는 `useClock`/`Date.now()` 기반 시계를 써서 영향이 없어 고치지 않았다.
+- 커밋: fix: 탭 전환 뒤 반딧불이가 멈추던 문제 (BUG-03)
+- 이슈 번호:
+- 재발 방지 테스트: `docs/13-testing.md` "F. 시간과 분위기" — 밤에 다른 탭으로 10초 이상 갔다 돌아오면 반딧불이가 계속 움직인다.

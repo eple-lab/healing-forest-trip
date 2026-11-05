@@ -441,6 +441,9 @@ export function RemotePlayers() {
   const lastSelect = useRef(Number.NEGATIVE_INFINITY);
 
   useFrame((state) => {
+    // [BUG-03] 탭 복귀 시 R3F가 clock.elapsedTime을 0으로 되돌려 lastSelect가 미래 값이 되고,
+    // 그만큼 원격 플레이어 목록이 다시 골라지지 않았다 → 시계가 되돌아간 경우 기준점을 초기화한다.
+    if (state.clock.elapsedTime < lastSelect.current) lastSelect.current = Number.NEGATIVE_INFINITY;
     if (state.clock.elapsedTime - lastSelect.current < SELECT_INTERVAL) return;
     lastSelect.current = state.clock.elapsedTime;
 

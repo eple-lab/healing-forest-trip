@@ -82,6 +82,9 @@ export function Fireflies() {
     material.opacity = Math.min(0.95, (night - 0.15) * 1.4);
     // 20fps 로 충분하다. frustumCulled=false 이므로 bounding sphere 도 계산하지 않는다.
     const t = state.clock.elapsedTime;
+    // [BUG-03] 탭을 돌아오면 R3F setFrameloop이 clock.elapsedTime을 0으로 되돌려
+    // t가 이전 lastUpdate보다 작아지고, 그 차이만큼 갱신이 멈췄다 → 시계가 되돌아간 경우 기준점을 당긴다.
+    if (t < lastUpdate.current) lastUpdate.current = t - 0.05;
     if (t - lastUpdate.current < 0.05) return;
     lastUpdate.current = t;
     const attr = group.geometry.getAttribute('position') as THREE.BufferAttribute;
