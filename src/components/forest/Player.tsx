@@ -308,8 +308,8 @@ export function Player() {
       stepAccum.current += speed * delta;
       if (stepAccum.current > (running ? 2.0 : 1.72)) {
         stepAccum.current = 0;
+        // [FEAT-01] 걸음마다 함께 울리던 높은 rustle("탁탁")을 빼고 발소리만 낸다.
         audio.footprint(currentSurface.current, running);
-        audio.rustle();
       }
     }
 

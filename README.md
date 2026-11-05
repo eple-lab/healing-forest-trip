@@ -63,7 +63,7 @@ https://github.com/user-attachments/assets/7c0b9c47-069e-4bc1-87f4-cda6547206bb
 | 키 | 하는 일 |
 | --- | --- |
 | `W` `A` `S` `D` (방향키) | 걷기 |
-| `Shift` | 조금 빠르게 걷기 |
+| `Shift` | 달리기 |
 | 마우스 | 화면을 클릭하면 시점 고정, 둘러보기 |
 | `E` | 앉기 · 줍기 · 열기 · 불 피우기 |
 | `Enter` | 빈터에서 대화 열기 |

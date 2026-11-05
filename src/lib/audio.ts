@@ -230,27 +230,31 @@ class ForestAudio {
 
     const src = ctx.createBufferSource();
     src.buffer = this.stepBuffer;
-    src.playbackRate.value = 0.92 + Math.random() * 0.18;
+    // [FEAT-01] 음 높이를 ±6%만 흔들어 걸음마다 조금씩 다르되 딱딱하지 않게 한다.
+    src.playbackRate.value = 0.94 + Math.random() * 0.12;
 
+    // [FEAT-01] 높은 대역(bandpass)이 "탁탁"하게 들렸다 → 낮은 대역만 남기는 lowpass로 바꾼다.
     const filter = ctx.createBiquadFilter();
-    filter.type = 'bandpass';
-    filter.Q.value = surface === 'wood' ? 1.1 : 0.8;
+    filter.type = 'lowpass';
+    filter.Q.value = 0.7;
     filter.frequency.value =
-      surface === 'wood' ? 420 : surface === 'dirt' ? 900 : surface === 'stone' ? 2000 : 1500;
+      surface === 'wood' ? 500 : surface === 'dirt' ? 700 : surface === 'grass' ? 800 : 900;
 
     const gain = ctx.createGain();
+    // [FEAT-01] 바닥별 크기는 그대로 두고, 달릴 때 커지는 배율만 1.35 → 1.2로 줄인다.
     const volume =
-      (surface === 'grass' ? 0.05 : surface === 'dirt' ? 0.11 : 0.09) * (running ? 1.35 : 1);
+      (surface === 'grass' ? 0.05 : surface === 'dirt' ? 0.11 : 0.09) * (running ? 1.2 : 1);
+    // [FEAT-01] 바로 시작하던 소리를 10ms 동안 올리고 약 0.22초에 걸쳐 부드럽게 사라지게 한다.
     gain.gain.setValueAtTime(0.0001, t);
-    gain.gain.exponentialRampToValueAtTime(volume, t + 0.008);
-    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
+    gain.gain.exponentialRampToValueAtTime(volume, t + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
 
     src.connect(filter).connect(gain).connect(this.master!);
     const send = ctx.createGain();
     send.gain.value = 0.18;
     gain.connect(send).connect(this.reverb!);
     src.start(t);
-    src.stop(t + 0.2);
+    src.stop(t + 0.3);
 
     if (surface === 'wood') {
       const thump = ctx.createOscillator();
