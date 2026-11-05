@@ -79,6 +79,8 @@ export function ForestExperience({
   const [frameloop, setFrameloop] = useState<'always' | 'never'>('always');
   // 그래픽 장치가 재시작/소실되면 흰 화면 대신 복구 안내를 보여준다.
   const [webglLost, setWebglLost] = useState(false);
+  // [FEAT-04] 숲에 들어가기 전 "모습 바꾸기" 화면을 덮어 보여 준다.
+  const [changingCharacter, setChangingCharacter] = useState(false);
 
   useEffect(() => {
     setUser(user);
@@ -164,7 +166,18 @@ export function ForestExperience({
         name={user.name}
         isGuest={user.isGuest}
         visitCount={visitCount}
+        characterId={characterId}
+        onChangeCharacter={() => setChangingCharacter(true)}
       />
+      {/* [FEAT-04] Canvas 는 그대로 두고 그 위에 캐릭터 바꾸기 화면을 덮는다. */}
+      {changingCharacter && (
+        <div className="character-overlay">
+          <CharacterSelect
+            initialId={characterId}
+            onDone={() => setChangingCharacter(false)}
+          />
+        </div>
+      )}
       {webglLost && (
         <div className="webgl-lost" role="alert">
           <h2>그래픽 장치가 재시작되었습니다</h2>

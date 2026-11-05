@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { getSocket } from '@/lib/socket';
 import { CHARACTERS, storeCharacter, type Character } from '@/lib/characters';
 import { useGame } from '@/store/game';
@@ -86,7 +86,8 @@ function DogPreview({ character }: { character: Character }) {
   );
 }
 
-function CharacterPreview({ character }: { character: Character }) {
+// [FEAT-04] 들어가기 화면에서도 지금 모습을 그대로 보여 줄 수 있도록 내보낸다.
+export function CharacterPreview({ character }: { character: Character }) {
   if (character.kind === 'animal') {
     return character.animal === 'cat' ? (
       <CatPreview character={character} />
@@ -106,17 +107,33 @@ const DESCRIPTIONS: Record<string, string> = {
   cat: '살금살금, 그러나 반드시 곁에 있는 여행자',
 };
 
-export function CharacterSelect() {
-  const [selected, setSelected] = useState<string | null>(null);
+// [FEAT-04] initialId/onDone 이 있으면 "모습 바꾸기" 모드로 연다. (숲에 들어가기 전 확인·변경)
+export function CharacterSelect({
+  initialId = null,
+  onDone,
+}: {
+  initialId?: string | null;
+  onDone?: () => void;
+}) {
+  const changing = typeof onDone === 'function';
+  // [FEAT-04] 바꾸기 모드에서는 지금 캐릭터가 선택된 채로 열린다.
+  const [selected, setSelected] = useState<string | null>(initialId ?? null);
   const user = useGame((s) => s.user);
   const setCharacter = useGame((s) => s.setCharacter);
   const confirmEnabled = selected !== null;
+  // [FEAT-04] 바꾸기 화면이 열리면 지금 선택된 카드에 포커스를 준다.
+  const initialCardRef = useRef<HTMLButtonElement | null>(null);
 
   const choices = useMemo(() => CHARACTERS, []);
 
   useEffect(() => {
     document.title = '숲속여행 · 여행자를 골라 주세요';
   }, []);
+
+  // [FEAT-04] 열릴 때 한 번만 지금 캐릭터 카드로 포커스를 옮긴다.
+  useEffect(() => {
+    if (changing) initialCardRef.current?.focus();
+  }, [changing]);
 
   const confirm = async () => {
     if (!selected) return;
@@ -132,12 +149,14 @@ export function CharacterSelect() {
     if (response && !response.ok) {
       console.warn('[character] 서버 저장 실패. 로컬에만 기억합니다.');
     }
+    // [FEAT-04] 바꾸기 모드에서는 저장한 뒤 들어가기 화면으로 돌아간다.
+    onDone?.();
   };
 
   return (
     <div className="character-screen">
       <div className="character-inner">
-        <p className="character-eyebrow">처음 방문</p>
+        <p className="character-eyebrow">{changing ? '모습 바꾸기' : '처음 방문'}</p>
         <h1>숲에 데려갈 여행자를 골라 주세요</h1>
         <p className="character-sub">
           {user?.name ? `${user.name} 님, ` : ''}한 번 고르면 다른 나그네에게도 이 모습으로 보입니다.
@@ -148,6 +167,8 @@ export function CharacterSelect() {
             return (
               <button
                 key={choice.id}
+                // [FEAT-04] 지금 캐릭터 카드에 열릴 때 포커스를 준다.
+                ref={changing && choice.id === initialId ? initialCardRef : undefined}
                 type="button"
                 role="radio"
                 aria-checked={active}
@@ -163,9 +184,17 @@ export function CharacterSelect() {
             );
           })}
         </div>
-        <button type="button" className="character-confirm" disabled={!confirmEnabled} onClick={confirm}>
-          이 캐릭터로 숲에 들어가기
-        </button>
+        <div className="character-actions">
+          <button type="button" className="character-confirm" disabled={!confirmEnabled} onClick={confirm}>
+            {changing ? '이 모습으로 정하기' : '이 캐릭터로 숲에 들어가기'}
+          </button>
+          {/* [FEAT-04] 바꾸기 모드에는 [취소]로 아무것도 바꾸지 않고 돌아갈 수 있다. */}
+          {changing && (
+            <button type="button" className="character-cancel" onClick={() => onDone?.()}>
+              취소
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

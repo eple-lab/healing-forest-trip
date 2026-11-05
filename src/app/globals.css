@@ -1608,10 +1608,29 @@ kbd {
   color: var(--moss-soft);
 }
 
+/* [FEAT-04] 들어가기 화면에서 지금 캐릭터 그림을 담는 칸. */
+.start-avatar.is-character {
+  flex: none;
+  width: 52px;
+  height: 52px;
+  padding: 3px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: rgba(143, 178, 122, 0.12);
+}
+
+.start-avatar.is-character svg {
+  width: 100%;
+  height: 100%;
+}
+
 .start-who div {
   display: flex;
   flex-direction: column;
   line-height: 1.4;
+  /* [FEAT-04] 옆의 [모습 바꾸기] 버튼 때문에 긴 이름이 넘치지 않게 한다. */
+  flex: 1;
+  min-width: 0;
 }
 
 .start-who strong {
@@ -1650,6 +1669,31 @@ kbd {
 .start-btn svg {
   width: 19px;
   height: 19px;
+}
+
+/* [FEAT-04] [모습 바꾸기] 버튼. 이름/참여 정보 옆에 붙인다. */
+.start-change {
+  flex: none;
+  margin-left: auto;
+  padding: 7px 12px;
+  border: 1px solid rgba(182, 207, 157, 0.3);
+  border-radius: 999px;
+  background: rgba(143, 178, 122, 0.12);
+  color: var(--moss-soft);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.start-change:hover {
+  background: rgba(143, 178, 122, 0.22);
+  border-color: rgba(182, 207, 157, 0.5);
+}
+
+.start-change:focus-visible {
+  outline: 2px solid #e2b05a;
+  outline-offset: 2px;
 }
 
 .start-hint {
@@ -2398,6 +2442,15 @@ kbd {
   color: #f0e9dd;
 }
 
+/* [FEAT-04] 숲 화면(Canvas) 위에 덮는 캐릭터 바꾸기 층. .start-overlay(z-index 60)보다 위. */
+.character-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  overflow-y: auto;
+  background: #16211c;
+}
+
 .character-inner {
   width: min(56rem, 100%);
   display: grid;
@@ -2499,6 +2552,41 @@ kbd {
   background: linear-gradient(180deg, #f2dfae, #d8bd85);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
   transition: transform 160ms ease, opacity 160ms ease;
+}
+
+/* [FEAT-04] 바꾸기 모드의 [이 모습으로 정하기] + [취소] 묶음. */
+.character-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  margin-top: 0.9rem;
+}
+
+.character-actions .character-confirm {
+  margin-top: 0;
+}
+
+.character-cancel {
+  border: 1px solid rgba(240, 225, 200, 0.2);
+  border-radius: 999px;
+  padding: 0.85rem 1.6rem;
+  font-weight: 600;
+  color: #cfc7b6;
+  background: transparent;
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease;
+}
+
+.character-cancel:hover {
+  border-color: rgba(240, 225, 200, 0.4);
+  background: rgba(240, 225, 200, 0.06);
+}
+
+.character-cancel:focus-visible {
+  outline: 2px solid #e2b05a;
+  outline-offset: 2px;
 }
 
 .character-confirm:disabled {

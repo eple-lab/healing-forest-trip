@@ -2,20 +2,29 @@
 
 import { useState } from 'react';
 import { audio } from '@/lib/audio';
+import { characterById } from '@/lib/characters';
 import { useGame } from '@/store/game';
+import { CharacterPreview } from './CharacterSelect';
 
 export function StartOverlay({
   name,
   isGuest,
   visitCount,
+  characterId,
+  onChangeCharacter,
 }: {
   name: string;
   isGuest: boolean;
   visitCount: number | null;
+  // [FEAT-04] 들어가기 전에 지금 모습을 보여 주고 바꿀 수 있게 한다.
+  characterId?: string | null;
+  onChangeCharacter?: () => void;
 }) {
   const [leaving, setLeaving] = useState(false);
   const [entered, setEntered] = useState(false);
   const setAudioStarted = useGame((s) => s.setAudioStarted);
+  // [FEAT-04] 저장된 캐릭터를 찾지 못하면 예전처럼 이름 첫 글자를 보여 준다.
+  const character = characterById(characterId);
 
   if (entered) return null;
 
@@ -40,18 +49,32 @@ export function StartOverlay({
 
         <div className="start-card glass">
           <div className="start-who">
-            <span className="start-avatar" aria-hidden="true">
-              {name.slice(0, 1)}
-            </span>
+            {/* [FEAT-04] 이름 첫 글자 대신 지금 캐릭터 그림을 보여 준다. */}
+            {character ? (
+              <span className="start-avatar is-character" aria-hidden="true">
+                <CharacterPreview character={character} />
+              </span>
+            ) : (
+              <span className="start-avatar" aria-hidden="true">
+                {name.slice(0, 1)}
+              </span>
+            )}
             <div>
               <strong>{name}</strong>
               <span>
+                {character ? `${character.label} · ` : ''}
                 {isGuest ? '게스트로 참여' : 'Google 계정으로 참여'}
                 {typeof visitCount === 'number' && visitCount > 1
                   ? ` · ${visitCount}번째 산책`
                   : ' · 첫 산책'}
               </span>
             </div>
+            {/* [FEAT-04] 지금 모습을 바꾸는 입구. 숲 안에서는 바꾸지 않는다. */}
+            {onChangeCharacter && (
+              <button type="button" className="start-change" onClick={onChangeCharacter}>
+                모습 바꾸기
+              </button>
+            )}
           </div>
           <button type="button" className="start-btn" onClick={() => void enter()}>
             <span>숲으로 들어가기</span>
