@@ -1,5 +1,5 @@
 {
-  "start": { "x": 0, "z": 72, "yaw": 3.14159265 },
+  "start": { "x": 0, "z": 72, "yaw": 0 },
   "clearing": { "x": 0, "z": -62, "radius": 23, "chatRadius": 24 },
   "cabin": {
     "x": 0,
