@@ -32,8 +32,8 @@ import { getSocket } from '@/lib/socket';
 const EYE = 1.62;
 const RADIUS = 0.3;
 const GRAVITY = 22;
-const WALK_SPEED = 2.35;
-const RUN_SPEED = 4.25;
+const WALK_SPEED = 4;
+const RUN_SPEED = 12;
 const STEP_UP = 0.62;
 const PITCH_LIMIT = 1.32;
 
