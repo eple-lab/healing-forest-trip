@@ -17,3 +17,18 @@
 - 커밋: fix(forest): 앉았다 일어나면 움직일 수 없던 문제 (BUG-01)
 - 이슈 번호: #1
 - 재발 방지 테스트: `docs/13-testing.md` "C. 앉기/눕기" — 그루터기, 벤치, 흔들의자, 1층 의자, 2층 큰 창가, 침대에서 각각 일어난 뒤 W·A·S·D로 바로 걸을 수 있다.
+
+## BUG-02 1층에서 "큰 창가에 앉기" 알림이 뜸
+
+- 발견: 2026-11-05 수동 테스트
+- 이슈:
+- 증상: 오두막 1층에 있는데 2층 대상인 "큰 창가에 앉기" 알림이 뜨고, E를 누르면 2층 창가로 순간이동해 앉는다. 반대로 2층에서 바로 아래 1층 가구(무릎담요 테이블, 벽난로 등)의 알림이 뜰 수 있다.
+- 원인: 알림 대상을 고르는 거리 계산이 x·z만 봤고(`src/components/forest/InteractionSystem.tsx:516`), `Target` 타입에 높이 정보가 없었다. 1층 바닥 `CABIN.floor1` = 0.32, 2층 바닥 `CABIN.floor2` = 3.42(`shared/world.json:12-13`)로 3.1m 차이를 구분하지 못했다. `playerState.y`는 발 높이다(`Player.tsx:359`에서 `pos.current.y`, 앉으면 `seat.feetY`).
+- 수정:
+  - `src/components/forest/InteractionSystem.tsx:118-129` — `Target`에 `y?: number`(대상 바닥 높이, 발 기준) 추가. 값이 없으면 높이를 보지 않는다(바깥 대상).
+  - `src/components/forest/InteractionSystem.tsx:244-260` — 좌석에 `y: seat.feetY`를 넣는다.
+  - `src/components/forest/InteractionSystem.tsx` — 오두막 1층 대상(벽난로, 무릎담요 테이블, 냉장고, 커피, 싱크)에 `y: CABIN.floor1`을 넣는다. 바깥 대상(화덕, 알림판, 표지판, 장작더미)은 넣지 않는다.
+  - `src/components/forest/InteractionSystem.tsx:532` — 거리 비교 앞에 `if (target.y !== undefined && Math.abs(playerState.y - target.y) > 1.2) continue;`를 넣어 다른 층 대상을 건너뛴다. 1.2m면 계단 중간(약 1.9m)에서는 양쪽 층 알림이 모두 안 뜨고, 같은 층에서는 뜬다.
+- 커밋: fix: 1층에서 2층 창가 알림이 뜨던 문제 (BUG-02)
+- 이슈 번호:
+- 재발 방지 테스트: `docs/13-testing.md` "C. 앉기/눕기" — 1층에 있을 때 2층 대상(큰 창가, 침대)의 알림이 뜨지 않고, 2층에 올라가면 뜬다. 2층에서 1층 가구 알림이 뜨지 않는다.

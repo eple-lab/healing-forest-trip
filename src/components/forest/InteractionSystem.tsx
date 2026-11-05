@@ -121,6 +121,8 @@ type Target = {
   hint?: string;
   x: number;
   z: number;
+  // [BUG-02] 층(바닥 높이) 정보가 없어 x·z만으로 거리를 재 1층에서 2층 대상이 잡혔다 → 대상 발 높이를 둔다. 없으면 높이를 보지 않는다(바깥 대상).
+  y?: number;
   radius: number;
   action: () => void;
   seat?: Seat;
@@ -246,6 +248,8 @@ function buildTargets(): Target[] {
       hint: 'E 키로 앉습니다',
       x: seat.x,
       z: seat.z,
+      // [BUG-02] 좌석마다 발 높이(feetY)가 다르다 → 같은 x·z라도 층이 다르면 알림을 띄우지 않는다.
+      y: seat.feetY,
       radius: seat.kind === 'stump' ? 1.75 : 2.0,
       seat,
       action: () => {
@@ -262,6 +266,8 @@ function buildTargets(): Target[] {
     hint: store.holdingLog ? '불이 크게 타오릅니다' : '장작더미에서 장작을 주워 오세요',
     x: FURNITURE.fireplace.x + 0.9,
     z: FURNITURE.fireplace.z,
+    // [BUG-02] 벽난로는 1층 가구다 → 2층에서 알림이 뜨지 않도록 발 높이를 둔다.
+    y: CABIN.floor1,
     radius: 2.1,
     action: () => {
       const state = useGame.getState();
@@ -305,6 +311,8 @@ function buildTargets(): Target[] {
     hint: store.hasBlanket ? undefined : '흔들의자에 앉아 덮을 수 있다',
     x: FURNITURE.blanketTable.x,
     z: FURNITURE.blanketTable.z,
+    // [BUG-02] 무릎담요 테이블은 1층 가구다 → 2층에서 알림이 뜨지 않도록 발 높이를 둔다.
+    y: CABIN.floor1,
     radius: 1.6,
     action: () => {
       const state = useGame.getState();
@@ -324,6 +332,8 @@ function buildTargets(): Target[] {
     hint: '냉장고 안의 물병',
     x: FURNITURE.fridge.x,
     z: FURNITURE.fridge.z,
+    // [BUG-02] 주방 가구는 1층이다 → 2층에서 알림이 뜨지 않도록 발 높이를 둔다.
+    y: CABIN.floor1,
     radius: 1.75,
     action: () => takeDrink('water'),
   });
@@ -333,6 +343,8 @@ function buildTargets(): Target[] {
     hint: '보글보글 끓는 커피포트',
     x: FURNITURE.coffee.x,
     z: FURNITURE.coffee.z,
+    // [BUG-02] 주방 가구는 1층이다 → 2층에서 알림이 뜨지 않도록 발 높이를 둔다.
+    y: CABIN.floor1,
     radius: 1.6,
     action: () => takeDrink('coffee'),
   });
@@ -342,6 +354,8 @@ function buildTargets(): Target[] {
     hint: '차가운 샘물',
     x: FURNITURE.sink.x,
     z: FURNITURE.sink.z,
+    // [BUG-02] 주방 가구는 1층이다 → 2층에서 알림이 뜨지 않도록 발 높이를 둔다.
+    y: CABIN.floor1,
     radius: 1.5,
     action: () => takeDrink('water'),
   });
@@ -513,6 +527,9 @@ export function InteractionSystem() {
     let best: Target | null = null;
     let bestDistance = Infinity;
     for (const target of targetsRef.current) {
+      // [BUG-02] x·z만 보면 1층에서 2층 대상(큰 창가·침대)이 잡혔다 → 발 높이 차가 1.2m를 넘으면 다른 층으로 보고 건너뛴다.
+      // 1.2m면 계단 중간(약 1.9m)에서는 양쪽 층 알림이 모두 안 뜨고, 같은 층(0m)에서는 뜬다.
+      if (target.y !== undefined && Math.abs(playerState.y - target.y) > 1.2) continue;
       const distance = Math.hypot(playerState.x - target.x, playerState.z - target.z);
       if (distance > target.radius) continue;
       // 화면 방향도 고려: 너무 등지고 있으면 제외 (앉은 상태 제외)
