@@ -60,8 +60,9 @@ const benchSeats: Seat[] = CLEARING_BENCHES.map((bench, index) => {
     x: bench.x,
     z: bench.z - 0.15,
     yaw: toCenter,
-    standX: bench.x + Math.cos(bench.angle) * 1.1,
-    standZ: bench.z + Math.sin(bench.angle) * 1.1,
+    // [BUG-01] stand가 벤치 자신의 충돌 상자(±1.4 x, ±0.7 z, RADIUS 0.3 포함) 안에 있었다 → 2.0m로 바깥에 둔다
+    standX: bench.x + Math.cos(bench.angle) * 2.0,
+    standZ: bench.z + Math.sin(bench.angle) * 2.0,
   };
 });
 

@@ -24,6 +24,7 @@ import {
   zoneAt,
 } from '@/lib/world';
 import { useGame } from '@/store/game';
+import type { Seat } from '@/types/game';
 import { inputState, consumeLook } from '@/lib/input';
 import { playerState } from '@/lib/player-state';
 import { audio } from '@/lib/audio';
@@ -71,6 +72,8 @@ export function Player() {
   const lastSignature = useRef('');
   const currentSurface = useRef<'grass' | 'dirt' | 'wood' | 'stone'>('dirt');
   const seatId = useRef<string | null>(null);
+  // [BUG-01] 일어날 때 마지막으로 앉았던 Seat의 standX/standZ로 옮기기 위해 저장해 둔다
+  const lastSeat = useRef<Seat | null>(null);
   const lookSensitivity = useRef(0.0022);
   const breathe = useRef(0);
   const fovTarget = useRef(68);
@@ -188,6 +191,8 @@ export function Player() {
 
     /* 앉은 상태 */
     if (seat) {
+      // [BUG-01] 일어날 때 참고할 수 있도록 현재 Seat을 저장해 둔다
+      lastSeat.current = seat;
       if (seatId.current !== seat.id) {
         seatId.current = seat.id;
         yaw.current = seat.yaw;
@@ -229,8 +234,38 @@ export function Player() {
     if (seatId.current) {
       // 일어나기
       seatId.current = null;
-      const g = groundAt(pos.current.x, pos.current.z, pos.current.y + 0.4);
-      pos.current.y = Math.max(g.y, pos.current.y);
+      // [BUG-01] 의자 좌표에 그대로 서면 의자 자신의 충돌 상자 안이라 막힌다 →
+      // standX/standZ로 옮기고, 그래도 막히면 의자 중심에서 8방향으로 빈자리를 찾는다
+      const last = lastSeat.current;
+      if (last) {
+        let tx = last.standX;
+        let tz = last.standZ;
+        let g = groundAt(tx, tz, last.feetY + 0.4);
+        if (blocked(tx, tz, g.y)) {
+          let found = false;
+          for (let r = 0.3; r <= 2.0 && !found; r += 0.3) {
+            for (let k = 0; k < 8; k++) {
+              const a = (k * Math.PI) / 4;
+              const cx = last.x + Math.cos(a) * r;
+              const cz = last.z + Math.sin(a) * r;
+              const cg = groundAt(cx, cz, last.feetY + 0.4);
+              if (!blocked(cx, cz, cg.y)) {
+                tx = cx;
+                tz = cz;
+                g = cg;
+                found = true;
+                break;
+              }
+            }
+          }
+        }
+        pos.current.x = tx;
+        pos.current.z = tz;
+        pos.current.y = g.y;
+      } else {
+        const g = groundAt(pos.current.x, pos.current.z, pos.current.y + 0.4);
+        pos.current.y = Math.max(g.y, pos.current.y);
+      }
       velY.current = 0;
     }
 
