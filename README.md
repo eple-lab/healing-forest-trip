@@ -6,11 +6,15 @@
 👉 **https://healing-forest-trip.onrender.com/**
 
 > 무료 서버라 한동안 아무도 없으면 잠들어요. 첫 접속은 30초~1분쯤 걸릴 수 있어요.
-> 숲은 **한국 시간**을 따라 낮과 밤이 바뀝니다. 아래 화면은 모두 밤에 찍었어요.
+> 숲은 **한국 시간**을 따라 낮과 밤이 바뀝니다. 아래 1~4는 밤에, 5는 아침에 찍었어요.
 
 <p align="center">
   <img src="docs/images/11%20모닥불.png" alt="별이 가득한 밤, 숲의 빈터 한가운데서 타오르는 모닥불과 반딧불이" width="100%">
 </p>
+
+## 시연 영상
+
+https://github.com/user-attachments/assets/7c0b9c47-069e-4bc1-87f4-cda6547206bb
 
 ## 화면 미리보기
 
@@ -41,6 +45,14 @@
 | 오솔길 끝의 오두막 | 오두막 앞 | 2층 큰 창가에 앉아 | 2층 침실 |
 | --- | --- | --- | --- |
 | <img src="docs/images/13.png" alt="오솔길 끝, 연기가 피어오르는 오두막" width="100%"> | <img src="docs/images/14%20오두막.png" alt="오두막 표지판: 불을 피우고 쉬어가세요" width="100%"> | <img src="docs/images/14.png" alt="2층 창가에 앉아 밤의 숲과 빈터 불빛을 바라보는 장면" width="100%"> | <img src="docs/images/15.png" alt="2층 침실의 침대와 스탠드, 빈터에서만 열리는 대화창" width="100%"> |
+
+### 5. 아침의 숲 (한국 시간 오전 9시 무렵)
+
+| 아침 산길 | 아침의 빈터 | 벤치에 앉아 올려다본 하늘 |
+| --- | --- | --- |
+| <img src="docs/images/20.png" alt="아침 햇살 아래 구불구불 이어지는 산길과 잘린 나무 밑동" width="100%"> | <img src="docs/images/19.png" alt="아침의 숲의 빈터: 모닥불, 통나무 벤치, 전구 줄" width="100%"> | <img src="docs/images/18.png" alt="빈터 벤치에 앉아 올려다본 파란 하늘과 해" width="100%"> |
+
+같은 숲이 시간에 따라 바뀝니다. 밤에는 별과 반딧불이가, 아침에는 해와 나무 그림자가 숲을 채워요.
 
 ## 숲을 걷는 법
 
@@ -88,7 +100,7 @@
 | 실행 가능한 웹 서비스 | https://healing-forest-trip.onrender.com/ |
 | 기획 문서 | [PRD.md](PRD.md) |
 | 회고록 | [retrospective.md](retrospective.md) |
-| 시연 영상 | [healing-forest-trip-video.mp4](docs/video/healing-forest-trip-video.mp4) |
+| 시연 영상 | [위 시연 영상](#시연-영상) (원본 파일: [docs/video](docs/video/healing-forest-trip-video.mp4)) |
 | AI와 나눈 대화 요약 | [docs/conversation-summary.md](docs/conversation-summary.md) (⭐ 가장 효과적이었던 프롬프트 포함) |
 
 ## 빠른 시작
