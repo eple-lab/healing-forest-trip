@@ -99,6 +99,7 @@ npm.cmd run build       # next build
 - [ ] 모든 버튼에 포커스 링/`aria-label`.
 - [ ] 모바일 세로/가로에서 HUD 가 겹치지 않는다.
 - [ ] `prefers-reduced-motion` 에서 과한 애니메이션이 없다.
+- [ ] 입구 알림판의 제목 띠와 종이 영역이 나뉘어 보이고 글자가 또렷하다. (FEAT-03)
 
 ### I. 보안
 
