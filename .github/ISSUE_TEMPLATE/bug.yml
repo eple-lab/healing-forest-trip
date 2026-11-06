@@ -1,0 +1,98 @@
+name: 버그 보고
+description: 동작이 기대와 다를 때 (ISO/IEC/IEEE 29119-3 결함 보고 항목 기준)
+title: "BUG-NN "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        이슈는 문제를 기록하는 곳입니다. 작업 지시(읽을 파일, 고치는 방법)는 적지 않습니다.
+        심각도·검증 라벨은 분류할 때 붙입니다. 개인정보(이메일, 사용자 폴더 경로, 키·토큰)는 적지 않습니다.
+  - type: input
+    id: bug-id
+    attributes:
+      label: BUG ID
+      description: docs/20-bugfix-log.md에서 다음 번호
+      placeholder: BUG-06
+    validations:
+      required: true
+  - type: textarea
+    id: symptom
+    attributes:
+      label: 증상
+      description: 무엇이 어떻게 잘못되는지
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 재현 절차
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 기대 결과
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 실제 결과
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: 환경
+      description: 브라우저·OS·커밋 해시
+      placeholder: Chrome 131 / Windows 11 / 커밋 abc1234
+    validations:
+      required: true
+  - type: dropdown
+    id: severity
+    attributes:
+      label: 심각도
+      options:
+        - 높음 (진행을 막음, 데이터·보안)
+        - 중간 (기능 이상, 우회 가능)
+        - 낮음 (문구, 모양, 사소함)
+    validations:
+      required: true
+  - type: input
+    id: found
+    attributes:
+      label: 발견
+      description: 날짜와 방법
+      placeholder: 2026-11-05 수동 테스트
+    validations:
+      required: true
+  - type: textarea
+    id: cause
+    attributes:
+      label: 원인 (코드 확인)
+      description: 분석한 뒤에 적습니다. 파일:줄 포함. 추정이면 추정이라고 적습니다.
+    validations:
+      required: false
+  - type: checkboxes
+    id: verify
+    attributes:
+      label: 검증 방법
+      description: 사람만 확인할 수 있으면 그 이유를 아래 확인 항목에 적습니다.
+      options:
+        - label: 자동 (typecheck, lint, Playwright)
+        - label: 수동 (사람이 화면에서 확인)
+        - label: 사람만 가능 (청감 등)
+  - type: textarea
+    id: checks
+    attributes:
+      label: 실제 동작 확인 항목
+      placeholder: |
+        - [ ]
+        - [ ]
+    validations:
+      required: true
