@@ -1,0 +1,27 @@
+#!/bin/sh
+# 0번 개인정보 검사 (가이드 skills/mine/eple-security-check 0번과 같은 명령)
+# 올릴 내용(스테이징된 diff)에 이메일, 사용자 폴더 경로, 키·토큰이 보이면 커밋을 멈춘다.
+# 소스트리, 터미널, Claude 세션, OpenCode 모두 같은 저장소면 이 검사를 거친다.
+# 정해진 예외(커밋 작성자 메일 등)는 .githooks/allow-patterns 에 grep -E 패턴으로 한 줄씩 적는다.
+# 실명·아이디는 패턴으로 못 잡는다. 눈으로도 확인한다.
+
+PATTERN='[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+[.][A-Za-z]{2,}|[A-Za-z]:[\]Users[\]|/Users/[^/ ]+|/home/[^/ ]+|(ghp_|gho_|github_pat_|sk-|xox[bp]-|AKIA)[A-Za-z0-9_-]{8,}|eyJ[A-Za-z0-9_-]{10,}[.]'
+
+hits=$(git diff --cached -U0 --no-color | grep -E '^[+][^+]' | grep -nE "$PATTERN")
+
+allow="$(git rev-parse --show-toplevel)/.githooks/allow-patterns"
+if [ -n "$hits" ] && [ -f "$allow" ]; then
+  rules=$(grep -vE '^[[:space:]]*(#|$)' "$allow")
+  if [ -n "$rules" ]; then
+    hits=$(printf '%s\n' "$hits" | grep -vE "$(printf '%s\n' "$rules" | paste -sd '|' -)")
+  fi
+fi
+
+if [ -n "$hits" ]; then
+  echo "[0번 개인정보 검사] 아래 줄 때문에 커밋을 멈췄어요."
+  printf '%s\n' "$hits"
+  echo "- 진짜 문제면: 고친 뒤 다시 커밋하세요 (경로는 상대 경로나 os.tmpdir())."
+  echo "- 문제가 아니면: .githooks/allow-patterns 에 예외 패턴을 적고 다시 커밋하세요."
+  exit 1
+fi
+exit 0

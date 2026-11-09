@@ -1,8 +1,10 @@
 ﻿import { chromium } from 'playwright-core';
 import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
-const OUT = 'C:/Users/eple/AppData/Local/Temp/opencode/forest-shots';
+// [BUG-06] PC 사용자 폴더 절대 경로가 공개 저장소에 들어갔다 → 저장소 기준 .screenshots/(gitignore)에 저장한다.
+const OUT = fileURLToPath(new URL('../.screenshots', import.meta.url));
 fs.mkdirSync(OUT, { recursive: true });
 
 const browser = await chromium.launch({

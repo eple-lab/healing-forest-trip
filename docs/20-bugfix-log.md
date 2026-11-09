@@ -71,3 +71,18 @@
 - 커밋: `ca8b2ae` feat: 발소리를 부드럽게 (FEAT-01)
 - 이슈 번호: #5
 - 재발 방지 테스트: `docs/13-testing.md` "G. 사운드" — 발소리가 작고 부드럽다. 바람 소리와 새소리는 이전과 같다. (FEAT-01)
+
+## BUG-06 스모크 스크립트에 PC 사용자 폴더 절대 경로
+
+- 발견: 2026-11-06 0번(개인정보) 검사
+- 이슈: #9
+- 증상: `scripts/smoke-character.mjs`, `scripts/smoke-two.mjs`, `scripts/smoke-visual.mjs`의 스크린숏 저장 경로 `OUT`이 이 PC의 사용자 폴더 아래 임시 폴더 절대 경로였고, 그대로 공개 저장소에 올라갔다. 다른 PC에서는 그 폴더가 없어 스크립트가 실패하고(앞의 두 파일은 폴더를 만들지도 않았다), 사용자 폴더 이름이 드러난다.
+- 원인: 스모크 스크립트를 만든 도구(OpenCode)가 자기 임시 폴더를 절대 경로로 적었고, 0번 검사가 세션의 약속일 뿐이라 그 커밋에는 적용되지 않았다.
+- 수정:
+  - 세 스크립트 — `OUT = fileURLToPath(new URL('../.screenshots', import.meta.url))`로 저장소 기준 `.screenshots/`(`.gitignore`에 있음)에 저장하고, 세 파일 모두 `fs.mkdirSync(OUT, { recursive: true })`로 폴더를 만든다.
+  - `.githooks/pre-commit`(0번 검사)과 `.githooks/allow-patterns`를 넣고 `core.hooksPath .githooks`로 켠다. 누가 커밋하든 올릴 내용에 메일, 사용자 폴더 경로, 키·토큰이 있으면 커밋이 멈춘다. `.gitattributes`로 훅 파일 줄바꿈을 LF로 고정한다.
+  - `AGENTS.md` — 절대 경로 금지, 훅이 막으면 `--no-verify` 금지, 기록 흐름(이슈 → `Refs` → `status:검증대기` → 확인 뒤 사람이 닫음).
+- 남은 것: 이미 push된 기록(2026-11-03 커밋들)에는 경로가 남아 있다. 기록을 다시 쓸지는 eple이 정한다.
+- 커밋: (이 기록이 든 커밋) fix: 스모크 스크립트 저장 경로를 저장소 안으로, 0번 검사 훅 (BUG-06)
+- 이슈 번호: #9
+- 재발 방지 테스트: `docs/13-testing.md` "자동 검사"(pre-commit 훅)와 "I. 보안" — 저장소 전체 `git grep`에 사용자 폴더 경로가 0건이다. (BUG-06)

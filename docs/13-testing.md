@@ -11,6 +11,14 @@ npm.cmd run build       # next build
 빌드 시 `NEXTAUTH_SECRET` 경고는 로컬에서 정상이다(운영에서는 필수).
 배포 전에는 반드시 typecheck 와 build 를 모두 통과시킨다.
 
+커밋할 때마다 pre-commit 훅(`.githooks/pre-commit`)이 0번(개인정보) 검사를 한다. 클론마다 한 번 켠다. (BUG-06)
+
+```powershell
+git config core.hooksPath .githooks
+```
+
+막히면 `--no-verify`로 넘기지 말고 고친다. 진짜 이름이 아닌 정해진 값만 `.githooks/allow-patterns`에 예외로 적는다.
+
 ## 수동 스모크 테스트
 
 ### A. 랜딩과 인증
@@ -113,6 +121,7 @@ npm.cmd run build       # next build
 - [ ] 빈터 밖에서 소켓 `chat:send` 를 직접 보내면 거부된다.
 - [ ] `move` 에 `NaN`/거대 좌표를 보내도 서버가 clamp 한다.
 - [ ] 잘못된 Origin 의 소켓 연결이 거부된다.
+- [ ] 저장소 전체 `git grep`에 PC 사용자 폴더 경로·메일·키·토큰이 0건이다(예시 값 제외). (BUG-06)
 
 ### J. DB/운영
 
@@ -141,6 +150,8 @@ npm.cmd run build       # next build
 node scripts/smoke-visual.mjs   # 랜딩/로그인/걷기/도움말/채팅/모바일 화면 + 콘솔 오류 수집
 node scripts/smoke-two.mjs      # 2탭 접속·이동(players:move 배치)·즉시 퇴장 확인
 ```
+
+스크린숏과 콘솔 기록은 저장소의 `.screenshots/`(git에서 뺌)에 저장된다. (BUG-06)
 
 ## 회귀 테스트 우선순위
 
