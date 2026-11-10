@@ -36,6 +36,9 @@ const GRAVITY = 22;
 const WALK_SPEED = 4;
 const RUN_SPEED = 12;
 const STEP_UP = 0.62;
+// [FEAT-05] 이동·중력 계산 조각 크기와 한 프레임에서 따라잡을 최대 시간(4fps까지 실제 속도 유지)
+const PHYSICS_STEP = 1 / 60;
+const MAX_FRAME = 0.25;
 const PITCH_LIMIT = 1.32;
 
 const MOVE_KEYS = new Set([
@@ -184,6 +187,7 @@ export function Player() {
   };
 
   useFrame((state, rawDelta) => {
+    // 카메라 흔들림·숨쉬기·시야각 같은 화면 효과용(이전과 같다). 이동과 중력은 아래에서 나눠 계산한다.
     const delta = Math.min(0.05, rawDelta);
     const store = useGame.getState();
     const frozen = store.chatOpen || store.helpOpen || store.resting || store.noticeOpen;
@@ -293,44 +297,60 @@ export function Player() {
       !frozen &&
       (keys.current.has('ShiftLeft') || keys.current.has('ShiftRight') || inputState.sprint);
 
-    if (magnitude > 0.05) {
+    const moving = magnitude > 0.05;
+    let speed = 0;
+    let dirX = 0;
+    let dirZ = 0;
+    if (moving) {
       const norm = Math.min(1, magnitude);
-      const speed = (running ? RUN_SPEED : WALK_SPEED) * norm;
+      speed = (running ? RUN_SPEED : WALK_SPEED) * norm;
       const fwdX = -Math.sin(yaw.current);
       const fwdZ = -Math.cos(yaw.current);
       const rightX = Math.cos(yaw.current);
       const rightZ = -Math.sin(yaw.current);
-      const dirX = (fwdX * forward + rightX * strafe) / (magnitude || 1);
-      const dirZ = (fwdZ * forward + rightZ * strafe) / (magnitude || 1);
-      tryMove(dirX * speed * delta, dirZ * speed * delta, pos.current.y);
-
+      dirX = (fwdX * forward + rightX * strafe) / (magnitude || 1);
+      dirZ = (fwdZ * forward + rightZ * strafe) / (magnitude || 1);
       bob.current += delta * (running ? 11.5 : 7.4) * norm;
-      stepAccum.current += speed * delta;
-      if (stepAccum.current > (running ? 2.0 : 1.72)) {
-        stepAccum.current = 0;
-        // [FEAT-01] 걸음마다 함께 울리던 높은 rustle("탁탁")을 빼고 발소리만 낸다.
-        audio.footprint(currentSurface.current, running);
-      }
     }
 
-    /* 중력과 지면 */
-    const ground = groundAt(pos.current.x, pos.current.z, pos.current.y);
-    if (ground.y > pos.current.y && ground.y - pos.current.y <= STEP_UP) {
-      // 계단/턱 오르기
-      pos.current.y = ground.y;
-      velY.current = 0;
-    } else if (ground.y < pos.current.y - 0.04) {
-      velY.current -= GRAVITY * delta;
-      pos.current.y += velY.current * delta;
-      if (pos.current.y <= ground.y) {
+    // [FEAT-05] 한 프레임을 0.05초로 잘라 20fps 미만에서 이동이 슬로모션이 됐다 →
+    // 실제 흐른 시간(최대 MAX_FRAME)을 PHYSICS_STEP 이하 조각으로 나눠 이동·걸음·중력을 계산한다.
+    // 한 조각의 이동 거리는 60fps 때와 같아(달리기 0.2m) 벽·가구를 뚫을 위험은 늘지 않는다.
+    let remaining = Math.min(MAX_FRAME, rawDelta);
+    let ground: ReturnType<typeof groundAt>;
+    do {
+      const dt = Math.min(PHYSICS_STEP, remaining);
+      remaining -= dt;
+
+      if (moving) {
+        tryMove(dirX * speed * dt, dirZ * speed * dt, pos.current.y);
+        stepAccum.current += speed * dt;
+        if (stepAccum.current > (running ? 2.0 : 1.72)) {
+          stepAccum.current = 0;
+          // [FEAT-01] 걸음마다 함께 울리던 높은 rustle("탁탁")을 빼고 발소리만 낸다.
+          audio.footprint(currentSurface.current, running);
+        }
+      }
+
+      /* 중력과 지면 */
+      ground = groundAt(pos.current.x, pos.current.z, pos.current.y);
+      if (ground.y > pos.current.y && ground.y - pos.current.y <= STEP_UP) {
+        // 계단/턱 오르기
+        pos.current.y = ground.y;
+        velY.current = 0;
+      } else if (ground.y < pos.current.y - 0.04) {
+        velY.current -= GRAVITY * dt;
+        pos.current.y += velY.current * dt;
+        if (pos.current.y <= ground.y) {
+          pos.current.y = ground.y;
+          velY.current = 0;
+        }
+      } else {
         pos.current.y = ground.y;
         velY.current = 0;
       }
-    } else {
-      pos.current.y = ground.y;
-      velY.current = 0;
-    }
-    currentSurface.current = ground.surface;
+      currentSurface.current = ground.surface;
+    } while (remaining > 1e-6);
 
     /* 카메라 */
     const bobAmount = magnitude > 0.05 ? (running ? 0.045 : 0.03) : 0;
