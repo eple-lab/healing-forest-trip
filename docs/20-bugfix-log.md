@@ -83,6 +83,6 @@
   - `.githooks/pre-commit`(0번 검사)과 `.githooks/allow-patterns`를 넣고 `core.hooksPath .githooks`로 켠다. 누가 커밋하든 올릴 내용에 메일, 사용자 폴더 경로, 키·토큰이 있으면 커밋이 멈춘다. `.gitattributes`로 훅 파일 줄바꿈을 LF로 고정한다.
   - `AGENTS.md` — 절대 경로 금지, 훅이 막으면 `--no-verify` 금지, 기록 흐름(이슈 → `Refs` → `status:검증대기` → 확인 뒤 사람이 닫음).
 - 남은 것: 이미 push된 기록(2026-11-03 커밋들)에는 경로가 남아 있다. 기록을 다시 쓸지는 eple이 정한다.
-- 커밋: (이 기록이 든 커밋) fix: 스모크 스크립트 저장 경로를 저장소 안으로, 0번 검사 훅 (BUG-06)
+- 커밋: `50dc6c3` fix: 스모크 스크립트 저장 경로를 저장소 안으로, 0번 검사 훅 (BUG-06)
 - 이슈 번호: #9
 - 재발 방지 테스트: `docs/13-testing.md` "자동 검사"(pre-commit 훅)와 "I. 보안" — 저장소 전체 `git grep`에 사용자 폴더 경로가 0건이다. (BUG-06)
