@@ -213,7 +213,8 @@ function Roof() {
         <meshStandardMaterial color="#3d2f23" roughness={1} />
       </mesh>
       {/* 굴뚝 */}
-      <group position={[-5.65, 0, -153.7]}>
+      {/* [BUG-07] 굴뚝이 벽난로와 z로 1.3m 어긋났다 → 벽난로 중심 z에 맞춘다. */}
+      <group position={[-5.65, 0, FURNITURE.fireplace.z]}>
         <mesh position={[0, 4.6, 0]} castShadow receiveShadow>
           <boxGeometry args={[1.35, 9.2, 1.35]} />
           <meshStandardMaterial map={stone} color="#8d8a80" roughness={1} />
@@ -509,25 +510,54 @@ function Fireplace() {
   const stone = useMemo(() => stoneTexture(), []);
   const fire = useGame((s) => s.fire);
   const inner = useMemo(() => logTexture(), []);
+  // [BUG-07] 몸체가 속이 찬 상자 하나라 아궁이·불이 그 안에 갇혔고, 절반 넘게 벽 속에 있었다 →
+  // 뒷면을 벽 안쪽 면에 붙이고(world.ts), 뒷판·양쪽 기둥·위 가로대·바닥 받침으로 나눠 앞을 튼다.
+  const bodyW = w + 0.12; // 벽에서 방 쪽으로의 깊이(x)
+  const bodyD = d + 0.24; // 벽을 따라 잰 폭(z)
+  const back = x - bodyW / 2;
+  const front = x + bodyW / 2;
+  const backT = 0.28;
+  const innerBack = back + backT;
+  const openD = 1.6;
+  const hearthH = 0.15;
+  const openTop = hearthH + 1.1;
+  const pillarD = (bodyD - openD) / 2;
   return (
     <group>
-      {/* 벽난로 몸체 */}
-      <mesh position={[x, F1 + 1.0, z]} castShadow receiveShadow>
-        <boxGeometry args={[w + 0.12, 2.0, d + 0.24]} />
+      {/* 뒷판 */}
+      <mesh position={[back + backT / 2, F1 + 1.0, z]} castShadow receiveShadow>
+        <boxGeometry args={[backT, 2.0, bodyD]} />
         <meshStandardMaterial map={stone} color="#8b877c" roughness={1} />
       </mesh>
-      {/* 연기실 */}
-      <mesh position={[x + 0.08, F1 + 0.9, z]}>
-        <boxGeometry args={[w - 0.1, 1.0, d - 0.5]} />
+      {/* 양쪽 기둥 */}
+      {[-1, 1].map((side) => (
+        <mesh
+          key={side}
+          position={[(innerBack + front) / 2, F1 + 1.0, z + side * (openD / 2 + pillarD / 2)]}
+          castShadow
+          receiveShadow
+        >
+          <boxGeometry args={[front - innerBack, 2.0, pillarD]} />
+          <meshStandardMaterial map={stone} color="#8b877c" roughness={1} />
+        </mesh>
+      ))}
+      {/* 위 가로대 */}
+      <mesh position={[(innerBack + front) / 2, F1 + (openTop + 2.0) / 2, z]} castShadow receiveShadow>
+        <boxGeometry args={[front - innerBack, 2.0 - openTop, openD]} />
+        <meshStandardMaterial map={stone} color="#8b877c" roughness={1} />
+      </mesh>
+      {/* 바닥 받침 (앞으로 조금 나온다) */}
+      <mesh position={[(innerBack + front + 0.25) / 2, F1 + hearthH / 2, z]} receiveShadow>
+        <boxGeometry args={[front + 0.25 - innerBack, hearthH, bodyD]} />
+        <meshStandardMaterial map={stone} color="#7e7a70" roughness={1} />
+      </mesh>
+      {/* 아궁이 안쪽 그을음 */}
+      <mesh position={[innerBack + 0.01, F1 + (hearthH + openTop) / 2, z]}>
+        <boxGeometry args={[0.02, openTop - hearthH, openD]} />
         <meshStandardMaterial color="#241c16" roughness={1} />
       </mesh>
-      {/* 앞면 아치 */}
-      <mesh position={[x + w / 2 + 0.02, F1 + 0.62, z]}>
-        <boxGeometry args={[0.06, 1.24, d - 0.34]} />
-        <meshStandardMaterial color="#33261c" roughness={1} />
-      </mesh>
-      {/* 불 */}
-      <group position={[x + 0.2, F1 + 0.1, z]}>
+      {/* 불 (아궁이 안, 앞에서 보인다) */}
+      <group position={[(innerBack + front) / 2 - 0.05, F1 + hearthH, z]}>
         <Fire position={[0, 0, 0]} intensity={fire.intensity} scale={0.72} lightDistance={9} />
       </group>
       {/* 굴뚝 받침 */}
@@ -535,14 +565,14 @@ function Fireplace() {
         <boxGeometry args={[w + 0.3, 0.3, d + 0.4]} />
         <meshStandardMaterial map={stone} color="#7e7a70" roughness={1} />
       </mesh>
-      {/* 선반 */}
-      <mesh position={[x + 0.3, F1 + 1.72, z]} castShadow>
-        <boxGeometry args={[0.55, 0.1, d + 0.1]} />
+      {/* 선반 (가로대 앞면에 붙인다) */}
+      <mesh position={[front + 0.12, F1 + 1.72, z]} castShadow>
+        <boxGeometry args={[0.3, 0.1, d + 0.1]} />
         <meshStandardMaterial map={inner} color="#5c412c" roughness={0.9} />
       </mesh>
       {/* 선반 위 촛불 */}
       {[-0.7, 0.7].map((dz) => (
-        <group key={dz} position={[x + 0.3, F1 + 1.77, z + dz]}>
+        <group key={dz} position={[front + 0.12, F1 + 1.77, z + dz]}>
           <mesh position={[0, 0.11, 0]}>
             <cylinderGeometry args={[0.035, 0.04, 0.22, 8]} />
             <meshStandardMaterial color="#e8dcc0" roughness={0.8} />
@@ -555,7 +585,7 @@ function Fireplace() {
         </group>
       ))}
       {/* 장작 바구니 */}
-      <group position={[x + 0.75, F1, z + 1.9]}>
+      <group position={[front + 0.27, F1, z + 1.9]}>
         <mesh position={[0, 0.22, 0]} castShadow>
           <cylinderGeometry args={[0.3, 0.24, 0.44, 10, 1, true]} />
           <meshStandardMaterial color="#6b4f34" roughness={1} side={THREE.DoubleSide} />

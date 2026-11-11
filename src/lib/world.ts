@@ -180,8 +180,10 @@ export const STAIR_HOLE = {
 };
 
 export const FURNITURE = {
-  fireplace: { x: -4.9, z: -152.4, w: 0.85, d: 2.7 },
-  rockingChair: { x: -2.75, z: -152.3, facing: Math.PI / 2 },
+  // [BUG-07] 벽난로 중심이 벽 안쪽 면(x -4.92) 근처라 절반 넘게 벽 속에 있었다 →
+  // 뒷면이 벽 안쪽 면에 붙도록 옮기고(뒷면 x -4.915), 흔들의자도 같은 거리(0.47m)만큼 뒤로 민다.
+  fireplace: { x: -4.43, z: -152.4, w: 0.85, d: 2.7 },
+  rockingChair: { x: -2.28, z: -152.3, facing: Math.PI / 2 },
   blanketTable: { x: -2.5, z: -150.1, w: 0.8, d: 0.55 },
   kitchen: { x0: -3.05, x1: 2.15, z0: -156.85, z1: -156.05, h: 0.92 },
   fridge: { x: -4.15, z: -156.35, w: 1.15, d: 0.75 },
@@ -316,8 +318,9 @@ export const BOX_COLLIDERS: BoxCollider[] = [
   { x0: 3.22, x1: 3.36, z0: -151.9, z1: -147.0, y0: 0.32, y1: 4.4, tag: 'rail' },
   // 가구
   { x0: -3.7, x1: -1.9, z0: 66.05, z1: 66.55, y0: 0, y1: 2.1, tag: 'notice' },
-  { x0: -5, x1: -4.1, z0: -153.9, z1: -150.9, y0: 0.32, y1: 2.2, tag: 'fireplace' },
-  { x0: -3.15, x1: -2.35, z0: -152.7, z1: -151.9, y0: 0.32, y1: 1.3, tag: 'chair' },
+  // [BUG-07] 벽난로·흔들의자를 옮긴 만큼 충돌 상자도 옮긴다(벽난로는 바닥 받침·선반 앞까지).
+  { x0: -4.92, x1: -3.65, z0: -153.9, z1: -150.9, y0: 0.32, y1: 2.2, tag: 'fireplace' },
+  { x0: -2.68, x1: -1.88, z0: -152.7, z1: -151.9, y0: 0.32, y1: 1.3, tag: 'chair' },
   { x0: -2.9, x1: -2.1, z0: -150.4, z1: -149.8, y0: 0.32, y1: 0.9, tag: 'table' },
   { x0: FURNITURE.kitchen.x0, x1: FURNITURE.kitchen.x1, z0: -156.9, z1: -156.0, y0: 0.32, y1: 1.3, tag: 'counter' },
   { x0: -4.72, x1: -3.58, z0: -156.72, z1: -155.98, y0: 0.32, y1: 2.1, tag: 'fridge' },
