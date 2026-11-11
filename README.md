@@ -191,12 +191,12 @@ healing-forest-trip/
 
 ## 문서
 
-설계부터 보안 점검까지 `docs/`에 20개 문서로 남겨 두었습니다.
+설계부터 보안 점검까지 `docs/`에 21개 문서로 남겨 두었습니다.
 
 | 분류 | 문서 |
 | --- | --- |
 | 기획 | [PRD](PRD.md) · [서비스 개요와 여정](docs/01-overview.md) · [공간·상호작용](docs/02-experience.md) · [조작법과 접근성](docs/03-controls.md) |
-| 설계 | [시스템 구조](docs/04-architecture.md) · [실시간 프로토콜](docs/05-multiplayer.md) · [월드 좌표/지형/충돌](docs/06-world.md) · [절차적 사운드](docs/07-audio.md) |
+| 설계 | [시스템 구조](docs/04-architecture.md) · [실시간 프로토콜](docs/05-multiplayer.md) · [월드 좌표/지형/충돌](docs/06-world.md) · [방위 기준](docs/21-directions.md) · [절차적 사운드](docs/07-audio.md) |
 | 보안·개인정보 | [보안 모델](docs/08-security.md) · [데이터·프라이버시](docs/09-privacy.md) · [시큐리티 테스트 계획](docs/17-security-test-plan.md) · [보안 결과 보고](docs/19-security-report.md) |
 | 운영·배포 | [운영/모니터링](docs/10-operations.md) · [성능](docs/11-performance.md) · [Render + Neon 배포](docs/12-deployment.md) · [문제 해결](docs/14-troubleshooting.md) |
 | 테스트 | [검증 체크리스트](docs/13-testing.md) · [테스트 계획](docs/16-test-plan.md) · [테스트 결과 보고](docs/18-test-report.md) |
