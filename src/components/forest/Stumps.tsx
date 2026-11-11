@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import * as THREE from 'three';
-import { STUMPS, loopSpot, terrainHeight } from '@/lib/world';
+import { STUMPS, TRAIL_SIGNS, loopSpot, terrainHeight } from '@/lib/world';
 import { stumpTexture } from '@/lib/textures';
 
 export function Stumps() {
@@ -73,67 +73,45 @@ export function DecorativeStumps() {
   );
 }
 
+/** 표지판 색 (위치·글자는 world.ts 의 TRAIL_SIGNS) */
+const SIGN_STYLE: Record<string, { background: string; color: string; border: string; width: number }> = {
+  'sign-start': { background: '#5a422c', color: '#f2e3c8', border: '#7d5f3f', width: 512 },
+  'sign-start-west': { background: '#54402b', color: '#efe0c4', border: '#7a5c3c', width: 512 },
+  'sign-start-east': { background: '#4f3a27', color: '#f3e6cd', border: '#755737', width: 512 },
+  'sign-clearing': { background: '#54402b', color: '#efe0c4', border: '#7a5c3c', width: 512 },
+  'sign-cabin': { background: '#4f3a27', color: '#f3e6cd', border: '#755737', width: 560 },
+};
+
 export function TrailSigns() {
-  const startSign = useMemo(
+  const textures = useMemo(
     () =>
-      signTextureSafe(['숲속여행', '산길 초입'], {
-        width: 512,
-        height: 280,
-        background: '#5a422c',
-        color: '#f2e3c8',
-        border: '#7d5f3f',
-      }),
-    [],
-  );
-  const clearingSign = useMemo(
-    () =>
-      signTextureSafe(['숲의 빈터', '쉬어가는 곳'], {
-        width: 512,
-        height: 280,
-        background: '#54402b',
-        color: '#efe0c4',
-        border: '#7a5c3c',
-      }),
-    [],
-  );
-  const cabinSign = useMemo(
-    () =>
-      signTextureSafe(['오두막', '불을 피우고 쉬어가세요'], {
-        width: 560,
-        height: 280,
-        background: '#4f3a27',
-        color: '#f3e6cd',
-        border: '#755737',
+      TRAIL_SIGNS.map((sign) => {
+        const style = SIGN_STYLE[sign.id] ?? SIGN_STYLE['sign-start'];
+        return signTextureSafe(sign.lines, {
+          width: style.width,
+          height: 280,
+          background: style.background,
+          color: style.color,
+          border: style.border,
+        });
       }),
     [],
   );
 
   return (
     <group>
-      <Sign
-        x={2.8}
-        z={67}
-        rotation={0.08}
-        texture={startSign}
-        width={1.9}
-        height={1.04}
-      />
-      <Sign
-        x={3.1}
-        z={-45}
-        rotation={-0.15}
-        texture={clearingSign}
-        width={1.9}
-        height={1.04}
-      />
-      <Sign
-        x={3.2}
-        z={-143.5}
-        rotation={-0.1}
-        texture={cabinSign}
-        width={2.2}
-        height={1.1}
-      />
+      {TRAIL_SIGNS.map((sign, i) => (
+        <Sign
+          key={sign.id}
+          x={sign.x}
+          z={sign.z}
+          rotation={sign.rotation}
+          texture={textures[i]}
+          width={sign.width}
+          height={sign.height}
+          doubleSided={sign.doubleSided}
+        />
+      ))}
     </group>
   );
 }
@@ -154,6 +132,7 @@ function Sign({
   texture,
   width,
   height,
+  doubleSided = false,
 }: {
   x: number;
   z: number;
@@ -161,12 +140,18 @@ function Sign({
   texture: THREE.Texture;
   width: number;
   height: number;
+  doubleSided?: boolean;
 }) {
   const y = terrainHeight(x, z);
   return (
     <group position={[x, y, z]} rotation-y={rotation}>
       {[-1, 1].map((side) => (
-        <mesh key={side} position={[side * (width * 0.36), 0.95, -0.07]} castShadow>
+        // 양면 표지판은 뒷면 글자를 가리지 않도록 기둥을 판 양 끝 바깥에 세운다
+        <mesh
+          key={side}
+          position={doubleSided ? [side * (width / 2 + 0.06), 0.95, 0] : [side * (width * 0.36), 0.95, -0.07]}
+          castShadow
+        >
           <cylinderGeometry args={[0.06, 0.08, 2.0, 6]} />
           <meshStandardMaterial color="#4a3524" roughness={1} />
         </mesh>
@@ -179,6 +164,13 @@ function Sign({
         <planeGeometry args={[width * 0.92, height * 0.86]} />
         <meshStandardMaterial map={texture} roughness={0.9} />
       </mesh>
+      {doubleSided && (
+        // 뒷면: 같은 글자를 반 바퀴 돌려 붙여 뒤에서도 바로 읽힌다
+        <mesh position={[0, 1.5, -0.051]} rotation-y={Math.PI}>
+          <planeGeometry args={[width * 0.92, height * 0.86]} />
+          <meshStandardMaterial map={texture} roughness={0.9} />
+        </mesh>
+      )}
     </group>
   );
 }

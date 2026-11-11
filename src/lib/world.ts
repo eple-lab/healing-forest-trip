@@ -234,20 +234,27 @@ export function nearestPath(x: number, z: number) {
  */
 export function loopSpot(t: number, side: number): Vec2 {
   const n = LOOP_SAMPLES.length - 1;
-  const i = clamp(Math.round((((t % 1) + 1) % 1) * n), 0, n - 1);
+  const f = loopFrame(clamp(Math.round((((t % 1) + 1) % 1) * n), 0, n - 1));
+  return { x: f.x + f.nx * side, z: f.z + f.nz * side };
+}
+
+/**
+ * 고리 표본 i 의 자리와 방향.
+ * (tx, tz): 진행 방향(서쪽으로 도는 쪽), (nx, nz): 고리 안쪽을 향하는 수직 방향
+ */
+function loopFrame(i: number) {
   const s = LOOP_SAMPLES[i];
   const next = LOOP_SAMPLES[i + 1];
-  const tx = next.x - s.x;
-  const tz = next.z - s.z;
-  const len = Math.hypot(tx, tz) || 1;
-  // 진행 방향에 수직인 방향을 고리 중심 쪽(안쪽)으로 맞춘다
-  let nx = -tz / len;
-  let nz = tx / len;
+  const len = Math.hypot(next.x - s.x, next.z - s.z) || 1;
+  const tx = (next.x - s.x) / len;
+  const tz = (next.z - s.z) / len;
+  let nx = -tz;
+  let nz = tx;
   if (nx * (LOOP.x - s.x) + nz * (LOOP.z - s.z) < 0) {
     nx = -nx;
     nz = -nz;
   }
-  return { x: s.x + nx * side, z: s.z + nz * side };
+  return { x: s.x, z: s.z, tx, tz, nx, nz };
 }
 
 /* ───────────────────────────────────────────────
@@ -691,10 +698,126 @@ export const STUMPS: Stump[] = [
 
 export const CLEARING_PROPS = {
   firePit: { x: CLEARING.x, z: CLEARING.z },
-  sign: { x: 2.6, z: -46 },
   benchCount: 5,
   lanternRadius: 8.4,
 };
+
+/* ───────────────────────────────────────────────
+ * 이정표
+ * ─────────────────────────────────────────────── */
+
+export type TrailSign = {
+  id: string;
+  x: number;
+  z: number;
+  /** 앞면이 바라보는 방향 (rotation-y, 앞면 법선 = (sin, cos)) */
+  rotation: number;
+  /** 판에 쓰는 글자 (줄마다) */
+  lines: string[];
+  /** E 로 읽을 때 나오는 문구 */
+  text: string;
+  /** 읽을 수 있는 거리(m) */
+  radius: number;
+  /** 뒷면에도 같은 글자를 붙인다 */
+  doubleSided: boolean;
+  width: number;
+  height: number;
+};
+
+/** 고리 위에서 시작 지점으로부터 dist(m)만큼 dir(+1 서쪽, -1 동쪽)으로 간 표본 번호 */
+function loopIndexFromStart(dist: number, dir: 1 | -1) {
+  const n = LOOP_SAMPLES.length - 1;
+  let walked = 0;
+  let i = 0;
+  while (walked < dist) {
+    const j = (i + dir + n) % n;
+    walked += Math.hypot(LOOP_SAMPLES[j].x - LOOP_SAMPLES[i].x, LOOP_SAMPLES[j].z - LOOP_SAMPLES[i].z);
+    i = j;
+  }
+  return i;
+}
+
+/** 시작 지점 양쪽 길 입구의 화살표 표지판: 고리 안쪽 3m에 세우고 앞면은 시작 지점을 본다 */
+function startArrowSign(id: string, dir: 1 | -1, lines: string[], text: string): TrailSign {
+  const f = loopFrame(loopIndexFromStart(8, dir));
+  const x = f.x + f.nx * 3;
+  const z = f.z + f.nz * 3;
+  return {
+    id,
+    x,
+    z,
+    rotation: Math.atan2(START.x - x, START.z - z),
+    lines,
+    text,
+    radius: 2.4,
+    doubleSided: false,
+    width: 1.9,
+    height: 1.04,
+  };
+}
+
+/**
+ * 갈림길 입구 옆 양면 이정표.
+ * 고리 안쪽으로 3m(길 띠 반폭은 최대 1.7m라 판 끝까지 띠 바깥), 진행 방향으로 2.4m(갈림길 띠 옆)에 세우고
+ * 판은 원형 길 방향을 보게 해서 양쪽에서 오는 사람이 모두 읽는다.
+ * 판 중심이 원형 길 중심선에서 3m 떨어지므로 읽는 거리는 3.5m.
+ */
+function junctionSign(
+  id: string,
+  junction: PathSample,
+  lines: string[],
+  text: string,
+  width: number,
+  height: number,
+): TrailSign {
+  const f = loopFrame(LOOP_SAMPLES.indexOf(junction));
+  return {
+    id,
+    x: f.x + f.nx * 3 + f.tx * 2.4,
+    z: f.z + f.nz * 3 + f.tz * 2.4,
+    rotation: Math.atan2(f.tx, f.tz),
+    lines,
+    text,
+    radius: 3.5,
+    doubleSided: true,
+    width,
+    height,
+  };
+}
+
+export const TRAIL_SIGNS: TrailSign[] = [
+  {
+    id: 'sign-start',
+    x: 2.8,
+    z: 67,
+    rotation: 0.08,
+    lines: ['숲속여행', '산길 초입'],
+    text: '숲속여행 · 산길 초입. 천천히 걸어가세요.',
+    radius: 2.4,
+    doubleSided: false,
+    width: 1.9,
+    height: 1.04,
+  },
+  startArrowSign('sign-start-west', 1, ['← 숲의 빈터'], '이 길로 돌면 숲의 빈터가 먼저 나와요.'),
+  startArrowSign('sign-start-east', -1, ['오두막 →'], '이 길로 돌면 오두막이 먼저 나와요.'),
+  junctionSign(
+    'sign-clearing',
+    clearingJunction,
+    ['숲의 빈터', '쉬어가는 곳'],
+    '숲의 빈터. 이 길로 들어가면 불을 피우고 이야기를 나누는 곳이 나와요.',
+    1.9,
+    1.04,
+  ),
+  junctionSign(
+    'sign-cabin',
+    cabinJunction,
+    ['오두막', '불을 피우고 쉬어가세요'],
+    // [BUG-04] 문은 늘 열려 있다 → 문구를 맞춘다.
+    '오두막. 이 길로 들어가 안에서 불을 지펴 보세요.',
+    2.2,
+    1.1,
+  ),
+];
 
 /** 빈터를 둘러싼 통나무 벤치 (길이 들어오는 방향은 비워 둔다) */
 export const CLEARING_BENCHES = [0.1, 1.0, 2.3, 3.6, 5.8].map((base) => {

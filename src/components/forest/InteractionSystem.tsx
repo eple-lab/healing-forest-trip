@@ -17,6 +17,7 @@ import {
   CLEARING_BENCHES,
   FURNITURE,
   STUMPS,
+  TRAIL_SIGNS,
   terrainHeight,
   yawToward,
 } from '@/lib/world';
@@ -127,28 +128,6 @@ type Target = {
   action: () => void;
   seat?: Seat;
 };
-
-const SIGNS = [
-  {
-    id: 'sign-start',
-    x: 2.8,
-    z: 67,
-    text: '숲속여행 · 산길 초입. 천천히 걸어가세요.',
-  },
-  {
-    id: 'sign-clearing',
-    x: 3.1,
-    z: -45,
-    text: '숲의 빈터. 불을 피우고 이야기를 나누는 곳.',
-  },
-  {
-    id: 'sign-cabin',
-    x: 3.2,
-    z: -143.5,
-    // [BUG-04] 문은 늘 열려 있다 → 문구를 맞춘다.
-    text: '오두막. 안으로 들어가 불을 지펴 보세요.',
-  },
-];
 
 function standUp() {
   const store = useGame.getState();
@@ -387,13 +366,13 @@ function buildTargets(): Target[] {
   });
 
   /* 표지판 */
-  for (const sign of SIGNS) {
+  for (const sign of TRAIL_SIGNS) {
     targets.push({
       id: sign.id,
       label: '표지판 읽기',
       x: sign.x,
       z: sign.z,
-      radius: 2.4,
+      radius: sign.radius,
       action: () => {
         useGame.getState().showToast(sign.text, 'info');
       },
