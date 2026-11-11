@@ -7,6 +7,8 @@
  * 모든 소리는 사용자의 "숲으로 들어가기" 제스처 이후에만 시작된다.
  */
 
+import { CABIN } from '@/lib/world';
+
 type Surface = 'grass' | 'dirt' | 'wood' | 'stone';
 
 type Environment = {
@@ -17,7 +19,8 @@ type Environment = {
   fireIntensity: number;
 };
 
-const FIRE = { x: -4.9, z: -152.4 };
+/** 벽난로 소리 위치 (오두막 기준: 서쪽 벽 안쪽, 벽난로 중심 z) */
+const FIRE = { x: CABIN.x - 4.9, z: CABIN.z - 0.4 };
 
 class ForestAudio {
   private ctx: AudioContext | null = null;

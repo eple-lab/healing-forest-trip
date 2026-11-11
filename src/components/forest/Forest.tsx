@@ -4,6 +4,7 @@ import { useLayoutEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import {
   BUSHES,
+  CABIN,
   ROCKS,
   TREES,
   TUFTS,
@@ -237,8 +238,9 @@ function Mushrooms() {
       [7.2, -73],
       [-3.2, -100],
       [3.4, -137],
-      [-9.4, -150],
-      [8.4, -146],
+      // 오두막 양옆 (오두막 기준)
+      [CABIN.x - 9.4, CABIN.z + 2],
+      [CABIN.x + 8.4, CABIN.z + 6],
     ];
     return spots.map(([x, z], index) => ({
       x,

@@ -146,61 +146,90 @@ export const CLEARING = {
   chatRadius: worldFile.clearing.chatRadius,
 };
 
-export const CABIN = {
-  x: worldFile.cabin.x,
-  z: worldFile.cabin.z,
+/*
+ * 오두막 좌표
+ * ─────────────────────────────────────────────
+ * 오두막 안팎의 값은 오두막 중심(CABIN.x, CABIN.z)을 원점으로 하는 "로컬 좌표"로 적는다.
+ * 정면(문·큰 창)은 +z 쪽이다. 오두막을 옮길 때는 shared/world.json 의 cabin.x/z 만 바꾼다.
+ *  - *_LOCAL : 로컬 좌표. Cabin.tsx 가 오두막 그룹 안에서 그릴 때 쓴다.
+ *  - 이름에 LOCAL 이 없는 값 : 월드 좌표(로컬 + 오두막 중심). 충돌·상호작용·소리가 쓴다.
+ */
+const CABIN_HALF_D = worldFile.cabin.halfD;
+
+/** 오두막 로컬 기준 값 (원점 = 오두막 중심) */
+export const CABIN_LOCAL = {
+  x: 0,
+  z: 0,
   halfW: worldFile.cabin.halfW,
-  halfD: worldFile.cabin.halfD,
+  halfD: CABIN_HALF_D,
   doorHalf: worldFile.cabin.doorHalf,
-  frontZ: worldFile.cabin.frontZ,
-  backZ: worldFile.cabin.backZ,
+  frontZ: CABIN_HALF_D,
+  backZ: -CABIN_HALF_D,
   floor1: worldFile.cabin.floor1,
   floor2: worldFile.cabin.floor2,
   wallTop: 6.52,
   ridge: 8.45,
   doorTop: 2.42,
-  porchZ: -144.2,
+  porchZ: 7.8,
 };
 
-export const STAIRS = {
+/** 로컬 좌표 객체의 x·z 계열 값에 오두막 중심을 더해 월드 좌표로 바꾼다 */
+const X_KEYS = ['x', 'x0', 'x1'] as const;
+const Z_KEYS = ['z', 'z0', 'z1', 'zBottom', 'zTop', 'frontZ', 'backZ', 'porchZ'] as const;
+function cabinToWorld<T extends object>(local: T): T {
+  const out = { ...local } as Record<string, unknown>;
+  for (const k of X_KEYS) if (typeof out[k] === 'number') out[k] = (out[k] as number) + worldFile.cabin.x;
+  for (const k of Z_KEYS) if (typeof out[k] === 'number') out[k] = (out[k] as number) + worldFile.cabin.z;
+  return out as T;
+}
+
+export const CABIN = cabinToWorld(CABIN_LOCAL);
+
+export const STAIRS_LOCAL = {
   x0: 3.34,
   x1: 4.78,
-  zBottom: -147.15,
-  zTop: -151.7,
-  yBottom: CABIN.floor1,
-  yTop: CABIN.floor2,
+  zBottom: 4.85,
+  zTop: 0.3,
+  yBottom: CABIN_LOCAL.floor1,
+  yTop: CABIN_LOCAL.floor2,
   steps: 11,
 };
+export const STAIRS = cabinToWorld(STAIRS_LOCAL);
 
-export const STAIR_HOLE = {
+export const STAIR_HOLE_LOCAL = {
   x0: 3.28,
   x1: 4.94,
-  z0: -151.45,
-  z1: -146.75,
+  z0: 0.55,
+  z1: 5.25,
 };
+export const STAIR_HOLE = cabinToWorld(STAIR_HOLE_LOCAL);
 
-export const FURNITURE = {
+export const FURNITURE_LOCAL = {
   // [BUG-07] 벽난로 중심이 벽 안쪽 면(x -4.92) 근처라 절반 넘게 벽 속에 있었다 →
   // 뒷면이 벽 안쪽 면에 붙도록 옮기고(뒷면 x -4.915), 흔들의자도 같은 거리(0.47m)만큼 뒤로 민다.
-  fireplace: { x: -4.43, z: -152.4, w: 0.85, d: 2.7 },
-  rockingChair: { x: -2.28, z: -152.3, facing: Math.PI / 2 },
-  blanketTable: { x: -2.5, z: -150.1, w: 0.8, d: 0.55 },
-  kitchen: { x0: -3.05, x1: 2.15, z0: -156.85, z1: -156.05, h: 0.92 },
-  fridge: { x: -4.15, z: -156.35, w: 1.15, d: 0.75 },
-  sink: { x: -1.5, z: -156.3 },
-  coffee: { x: 0.55, z: -156.32 },
-  woodpile: { x: 6.5, z: -150.6, w: 1.5, d: 1.7 },
-  bed: { x: -2.6, z: -154.85, w: 2.05, d: 2.25 },
-  windowSeat: { x: 0.2, z: -147.65, w: 2.6, d: 0.7 },
-  rug: { x: -2.3, z: -151.4 },
+  fireplace: { x: -4.43, z: -0.4, w: 0.85, d: 2.7 },
+  rockingChair: { x: -2.28, z: -0.3, facing: Math.PI / 2 },
+  blanketTable: { x: -2.5, z: 1.9, w: 0.8, d: 0.55 },
+  kitchen: { x0: -3.05, x1: 2.15, z0: -4.85, z1: -4.05, h: 0.92 },
+  fridge: { x: -4.15, z: -4.35, w: 1.15, d: 0.75 },
+  sink: { x: -1.5, z: -4.3 },
+  coffee: { x: 0.55, z: -4.32 },
+  woodpile: { x: 6.5, z: 1.4, w: 1.5, d: 1.7 },
+  bed: { x: -2.6, z: -2.85, w: 2.05, d: 2.25 },
+  windowSeat: { x: 0.2, z: 4.35, w: 2.6, d: 0.7 },
+  rug: { x: -2.3, z: 0.6 },
 };
+export const FURNITURE = Object.fromEntries(
+  Object.entries(FURNITURE_LOCAL).map(([k, v]) => [k, cabinToWorld(v)]),
+) as typeof FURNITURE_LOCAL;
 
-export const WINDOW = {
+export const WINDOW_LOCAL = {
   halfW: 2.4,
-  bottom: CABIN.floor2 + 0.62,
-  top: CABIN.floor2 + 2.32,
-  z: CABIN.frontZ,
+  bottom: CABIN_LOCAL.floor2 + 0.62,
+  top: CABIN_LOCAL.floor2 + 2.32,
+  z: CABIN_LOCAL.frontZ,
 };
+export const WINDOW = cabinToWorld(WINDOW_LOCAL);
 
 /* ───────────────────────────────────────────────
  * 3. 지형 높이
@@ -257,11 +286,11 @@ export function groundAt(
   ];
 
   // 마당 / 현관 데크
-  if (inRect(x, z, -3.5, 3.5, CABIN.porchZ, CABIN.frontZ + 0.02)) {
+  if (inRect(x, z, CABIN.x - 3.5, CABIN.x + 3.5, CABIN.porchZ, CABIN.frontZ + 0.02)) {
     candidates.push({ y: CABIN.floor1, surface: 'wood' });
   }
   // 1층
-  if (inRect(x, z, -CABIN.halfW, CABIN.halfW, CABIN.backZ, CABIN.frontZ)) {
+  if (inRect(x, z, CABIN.x - CABIN.halfW, CABIN.x + CABIN.halfW, CABIN.backZ, CABIN.frontZ)) {
     candidates.push({ y: CABIN.floor1, surface: 'wood' });
   }
   // 계단
@@ -269,7 +298,7 @@ export function groundAt(
   if (sh !== null) candidates.push({ y: sh, surface: 'wood' });
   // 2층 (계단 구멍 제외)
   if (
-    inRect(x, z, -CABIN.halfW, CABIN.halfW, CABIN.backZ, CABIN.frontZ) &&
+    inRect(x, z, CABIN.x - CABIN.halfW, CABIN.x + CABIN.halfW, CABIN.backZ, CABIN.frontZ) &&
     !inRect(x, z, STAIR_HOLE.x0, STAIR_HOLE.x1, STAIR_HOLE.z0, STAIR_HOLE.z1)
   ) {
     candidates.push({ y: CABIN.floor2, surface: 'wood' });
@@ -302,33 +331,40 @@ export type BoxCollider = {
   tag?: string;
 };
 
-export const BOX_COLLIDERS: BoxCollider[] = [
+/** 오두막 충돌 상자 (로컬 좌표) */
+const CABIN_COLLIDERS_LOCAL: BoxCollider[] = [
   // 벽
-  { x0: -5.12, x1: -4.92, z0: -157, z1: -147, y0: 0, y1: 7, tag: 'wall' },
-  { x0: 4.92, x1: 5.12, z0: -157, z1: -147, y0: 0, y1: 7, tag: 'wall' },
-  { x0: -5.1, x1: 5.1, z0: -157.12, z1: -156.92, y0: 0, y1: 7, tag: 'wall' },
+  { x0: -5.12, x1: -4.92, z0: -5, z1: 5, y0: 0, y1: 7, tag: 'wall' },
+  { x0: 4.92, x1: 5.12, z0: -5, z1: 5, y0: 0, y1: 7, tag: 'wall' },
+  { x0: -5.1, x1: 5.1, z0: -5.12, z1: -4.92, y0: 0, y1: 7, tag: 'wall' },
   // 앞벽 1층 (문 양옆)
-  { x0: -5.1, x1: -CABIN.doorHalf, z0: -147.08, z1: -146.92, y0: 0, y1: 3.5, tag: 'wall' },
-  { x0: CABIN.doorHalf, x1: 5.1, z0: -147.08, z1: -146.92, y0: 0, y1: 3.5, tag: 'wall' },
+  { x0: -5.1, x1: -CABIN_LOCAL.doorHalf, z0: 4.92, z1: 5.08, y0: 0, y1: 3.5, tag: 'wall' },
+  { x0: CABIN_LOCAL.doorHalf, x1: 5.1, z0: 4.92, z1: 5.08, y0: 0, y1: 3.5, tag: 'wall' },
   // 앞벽 2층 (큰 창 아래/양옆)
-  { x0: -5.1, x1: -WINDOW.halfW, z0: -147.08, z1: -146.92, y0: 3.42, y1: 6.6, tag: 'wall' },
-  { x0: WINDOW.halfW, x1: 5.1, z0: -147.08, z1: -146.92, y0: 3.42, y1: 6.6, tag: 'wall' },
-  { x0: -WINDOW.halfW, x1: WINDOW.halfW, z0: -147.08, z1: -146.92, y0: 3.42, y1: WINDOW.bottom, tag: 'wall' },
+  { x0: -5.1, x1: -WINDOW_LOCAL.halfW, z0: 4.92, z1: 5.08, y0: 3.42, y1: 6.6, tag: 'wall' },
+  { x0: WINDOW_LOCAL.halfW, x1: 5.1, z0: 4.92, z1: 5.08, y0: 3.42, y1: 6.6, tag: 'wall' },
+  { x0: -WINDOW_LOCAL.halfW, x1: WINDOW_LOCAL.halfW, z0: 4.92, z1: 5.08, y0: 3.42, y1: WINDOW_LOCAL.bottom, tag: 'wall' },
   // 계단 난간
-  { x0: 3.22, x1: 3.36, z0: -151.9, z1: -147.0, y0: 0.32, y1: 4.4, tag: 'rail' },
+  { x0: 3.22, x1: 3.36, z0: 0.1, z1: 5.0, y0: 0.32, y1: 4.4, tag: 'rail' },
   // 가구
-  { x0: -3.7, x1: -1.9, z0: 66.05, z1: 66.55, y0: 0, y1: 2.1, tag: 'notice' },
   // [BUG-07] 벽난로·흔들의자를 옮긴 만큼 충돌 상자도 옮긴다(벽난로는 바닥 받침·선반 앞까지).
-  { x0: -4.92, x1: -3.65, z0: -153.9, z1: -150.9, y0: 0.32, y1: 2.2, tag: 'fireplace' },
-  { x0: -2.68, x1: -1.88, z0: -152.7, z1: -151.9, y0: 0.32, y1: 1.3, tag: 'chair' },
-  { x0: -2.9, x1: -2.1, z0: -150.4, z1: -149.8, y0: 0.32, y1: 0.9, tag: 'table' },
-  { x0: FURNITURE.kitchen.x0, x1: FURNITURE.kitchen.x1, z0: -156.9, z1: -156.0, y0: 0.32, y1: 1.3, tag: 'counter' },
-  { x0: -4.72, x1: -3.58, z0: -156.72, z1: -155.98, y0: 0.32, y1: 2.1, tag: 'fridge' },
-  { x0: -3.65, x1: -1.55, z0: -156.0, z1: -153.7, y0: 3.42, y1: 4.3, tag: 'bed' },
-  { x0: -1.1, x1: 1.5, z0: -148.0, z1: -147.3, y0: 3.42, y1: 4.0, tag: 'seat' },
-  { x0: 5.6, x1: 7.4, z0: -151.5, z1: -149.7, y0: 0, y1: 1.6, tag: 'woodpile' },
+  { x0: -4.92, x1: -3.65, z0: -1.9, z1: 1.1, y0: 0.32, y1: 2.2, tag: 'fireplace' },
+  { x0: -2.68, x1: -1.88, z0: -0.7, z1: 0.1, y0: 0.32, y1: 1.3, tag: 'chair' },
+  { x0: -2.9, x1: -2.1, z0: 1.6, z1: 2.2, y0: 0.32, y1: 0.9, tag: 'table' },
+  { x0: FURNITURE_LOCAL.kitchen.x0, x1: FURNITURE_LOCAL.kitchen.x1, z0: -4.9, z1: -4.0, y0: 0.32, y1: 1.3, tag: 'counter' },
+  { x0: -4.72, x1: -3.58, z0: -4.72, z1: -3.98, y0: 0.32, y1: 2.1, tag: 'fridge' },
+  { x0: -3.65, x1: -1.55, z0: -4.0, z1: -1.7, y0: 3.42, y1: 4.3, tag: 'bed' },
+  { x0: -1.1, x1: 1.5, z0: 4.0, z1: 4.7, y0: 3.42, y1: 4.0, tag: 'seat' },
+  { x0: 5.6, x1: 7.4, z0: 0.5, z1: 2.3, y0: 0, y1: 1.6, tag: 'woodpile' },
   // 2층 난간
-  { x0: 3.2, x1: 3.32, z0: -151.45, z1: -146.75, y0: 3.42, y1: 4.45, tag: 'rail' },
+  { x0: 3.2, x1: 3.32, z0: 0.55, z1: 5.25, y0: 3.42, y1: 4.45, tag: 'rail' },
+];
+
+/** 충돌 상자 (월드 좌표). 하나라도 겹치면 막히므로 순서는 상관없다. */
+export const BOX_COLLIDERS: BoxCollider[] = [
+  ...CABIN_COLLIDERS_LOCAL.map(cabinToWorld),
+  // 시작 지점 게시판
+  { x0: -3.7, x1: -1.9, z0: 66.05, z1: 66.55, y0: 0, y1: 2.1, tag: 'notice' },
 ];
 
 export type TreeCollider = { x: number; z: number; r: number };
@@ -402,10 +438,11 @@ function generateForest() {
 
   // 오두막을 감싸는 나무
   for (let i = 0; i < 20; i++) {
-    const x = (rnd() * 2 - 1) * 30;
-    const z = -152 + (rnd() * 2 - 1) * 27;
+    const x = CABIN.x + (rnd() * 2 - 1) * 30;
+    const z = CABIN.z + (rnd() * 2 - 1) * 27;
     if (pointBlocked(x, z)) continue;
-    if (Math.hypot(x, z + 143) < 9) continue;
+    // 오두막 앞마당(정면 9m)은 비운다
+    if (Math.hypot(x - CABIN.x, z - (CABIN.z + 9)) < 9) continue;
     trees.push({
       x,
       z,

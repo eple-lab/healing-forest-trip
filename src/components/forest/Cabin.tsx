@@ -5,18 +5,21 @@
  * ─────────────────────────────────────────────
  * 1층: 벽난로 · 흔들의자 · 무릎담요 테이블 · 주방
  * 2층: 침실 · 큰 창문
- * 좌표는 src/lib/world.ts 의 CABIN / FURNITURE / STAIRS / WINDOW 를 그대로 따른다.
+ * 좌표는 src/lib/world.ts 의 오두막 로컬 좌표(*_LOCAL, 원점 = 오두막 중심)를 따른다.
+ * 맨 바깥 그룹을 월드의 오두막 중심(CABIN_WORLD.x, CABIN_WORLD.z)에 놓으므로
+ * 이 파일 안의 위치 숫자는 모두 오두막 기준이다.
  */
 
 import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import {
-  CABIN,
-  FURNITURE,
-  STAIRS,
-  STAIR_HOLE,
-  WINDOW,
+  CABIN as CABIN_WORLD,
+  CABIN_LOCAL as CABIN,
+  FURNITURE_LOCAL as FURNITURE,
+  STAIRS_LOCAL as STAIRS,
+  STAIR_HOLE_LOCAL as STAIR_HOLE,
+  WINDOW_LOCAL as WINDOW,
 } from '@/lib/world';
 import { logTexture, plankTexture, stoneTexture, plaidTexture, glowTexture } from '@/lib/textures';
 import { useGame } from '@/store/game';
@@ -315,7 +318,7 @@ function Porch() {
       {/* 장작더미 (밖) */}
       <Woodpile />
       {/* 도끼질용 그루터기 */}
-      <group position={[7.6, 0, -148.4]}>
+      <group position={[7.6, 0, 3.6]}>
         <mesh position={[0, 0.24, 0]} castShadow receiveShadow>
           <cylinderGeometry args={[0.34, 0.42, 0.48, 11]} />
           <meshStandardMaterial color="#5b422d" roughness={1} flatShading />
@@ -906,7 +909,7 @@ function Bedroom() {
         <meshStandardMaterial color="#7c5f4b" roughness={1} />
       </mesh>
       {/* 낮은 책장 */}
-      <group position={[4.1, F2, -147.9 + 0.4]}>
+      <group position={[4.1, F2, 4.1 + 0.4]}>
         <mesh position={[0, 0.4, 0]} castShadow receiveShadow>
           <boxGeometry args={[1.1, 0.8, 0.36]} />
           <meshStandardMaterial map={planks} color="#63482f" roughness={1} />
@@ -953,8 +956,8 @@ function CabinLights() {
   return (
     <group>
       {/* 실내 기본 불빛 */}
-      <pointLight position={[0, F2 - 0.4, -151]} color="#ffc58a" intensity={2.2} distance={14} decay={2} />
-      <pointLight position={[2.4, F1 + 2.1, -154]} color="#ffd7a6" intensity={1.5} distance={11} decay={2} />
+      <pointLight position={[0, F2 - 0.4, 1]} color="#ffc58a" intensity={2.2} distance={14} decay={2} />
+      <pointLight position={[2.4, F1 + 2.1, -2]} color="#ffd7a6" intensity={1.5} distance={11} decay={2} />
       {/* 벽난로 화광 */}
       <pointLight
         position={[FURNITURE.fireplace.x + 1.0, F1 + 0.8, FURNITURE.fireplace.z]}
@@ -964,7 +967,7 @@ function CabinLights() {
         decay={2}
       />
       {/* 큰 창으로 들어오는 달빛 느낌 (은은한 푸른빛) */}
-      <pointLight position={[0, F2 + 1.8, -149]} color="#9fb6e8" intensity={0.5} distance={9} decay={2} />
+      <pointLight position={[0, F2 + 1.8, 3]} color="#9fb6e8" intensity={0.5} distance={9} decay={2} />
     </group>
   );
 }
@@ -1002,7 +1005,7 @@ function ChimneySmoke() {
   });
 
   return (
-    <group ref={group} position={[-5.65, 0, -153.7]}>
+    <group ref={group} position={[-5.65, 0, -1.7]}>
       {puffs.map((puff, i) => (
         <sprite key={i}>
           <spriteMaterial
@@ -1022,7 +1025,7 @@ function ChimneySmoke() {
 export function Cabin() {
   const { texture } = useWood();
   return (
-    <group>
+    <group position={[CABIN_WORLD.x, 0, CABIN_WORLD.z]}>
       <FrontWall map={texture} />
       <InteriorWalls />
       <DoorFrame />

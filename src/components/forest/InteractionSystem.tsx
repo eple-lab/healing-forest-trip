@@ -85,11 +85,11 @@ const windowSeat: Seat = {
   label: '큰 창가에 앉기',
   eyeY: CABIN.floor2 + 1.12,
   feetY: CABIN.floor2,
-  x: 0.15,
-  z: -147.92,
+  x: CABIN.x + 0.15,
+  z: CABIN.z + 4.08,
   yaw: Math.PI,
-  standX: 0.15,
-  standZ: -149.2,
+  standX: CABIN.x + 0.15,
+  standZ: CABIN.z + 2.8,
 };
 
 const bedSeat: Seat = {
@@ -98,11 +98,11 @@ const bedSeat: Seat = {
   label: '침대에 눕기',
   eyeY: CABIN.floor2 + 0.66,
   feetY: CABIN.floor2,
-  x: -2.6,
-  z: -154.7,
+  x: CABIN.x - 2.6,
+  z: CABIN.z - 2.7,
   yaw: Math.PI,
-  standX: -2.6,
-  standZ: -152.9,
+  standX: CABIN.x - 2.6,
+  standZ: CABIN.z - 0.9,
 };
 
 export const SEATS: Seat[] = [
