@@ -126,8 +126,13 @@ export function CharacterSelect({
 
   const choices = useMemo(() => CHARACTERS, []);
 
+  // [BUG-08] 열 때 바꾼 탭 제목을 닫을 때 되돌리지 않아 숲에서도 남았다 → 정리 함수에서 원래 제목으로 돌린다.
   useEffect(() => {
+    const previousTitle = document.title;
     document.title = '숲속여행 · 여행자를 골라 주세요';
+    return () => {
+      document.title = previousTitle;
+    };
   }, []);
 
   // [FEAT-04] 열릴 때 한 번만 지금 캐릭터 카드로 포커스를 옮긴다.
