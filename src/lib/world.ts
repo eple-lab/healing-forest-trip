@@ -48,7 +48,7 @@ export function mulberry32(seed: number) {
 
 /*
  * 숲을 한 바퀴 도는 타원 고리 + 고리에서 빈터·오두막으로 들어가는 갈림길 2개.
- * 고리는 시작 지점(타원의 +z 끝)에서 서쪽(-x)으로 돌아 다시 시작 지점으로 돌아온다.
+ * 고리는 시작 지점(타원의 +z 끝)에서 -x 쪽(시작 지점에서 볼 때 왼쪽)으로 돌아 다시 시작 지점으로 돌아온다.
  * 구불거림은 예전 일자 길과 비슷하게: 약 18m마다 제어점, 좌우로 최대 3.5m.
  */
 
@@ -56,7 +56,7 @@ export function mulberry32(seed: number) {
 export const LOOP = { x: 0, z: -55, rx: 62, rz: 127 };
 const LOOP_POINTS = 34;
 const LOOP_WIGGLE = 3.5;
-/** 오두막 갈림길이 고리에서 갈라지는 지점 (고리 동쪽) */
+/** 오두막 갈림길이 고리에서 갈라지는 지점 (고리의 +x 쪽) */
 const CABIN_JUNCTION: Vec2 = { x: 53, z: -125 };
 /** 빈터 갈림길이 끝나는 곳: 빈터 중심에서 이만큼 떨어진 곳(벤치 바깥) */
 const CLEARING_SPUR_END = 11;
@@ -195,7 +195,7 @@ const CLEARING_SPUR = buildTrail(
   false,
 );
 
-/** 오두막 갈림길: 고리 동쪽에서 갈라져 앞마당 쪽에서 문 정면(+z)으로 다가간다 */
+/** 오두막 갈림길: 고리의 +x 쪽에서 갈라져 앞마당 쪽에서 문 정면(+z)으로 다가간다 */
 const cabinJunction = nearestIn(LOOP_SAMPLES, CABIN_JUNCTION.x, CABIN_JUNCTION.z).sample;
 const CABIN_SPUR = buildTrail(
   spurControl(
@@ -230,7 +230,7 @@ export function nearestPath(x: number, z: number) {
 
 /**
  * 고리 위 한 점에서 옆으로 비켜난 자리.
- * t: 고리를 따라 간 비율(0 = 시작 지점, 서쪽으로 돈다), side: 고리 안쪽(+)·바깥쪽(-)으로 비켜날 거리(m)
+ * t: 고리를 따라 간 비율(0 = 시작 지점, -x 쪽으로 돈다), side: 고리 안쪽(+)·바깥쪽(-)으로 비켜날 거리(m)
  */
 export function loopSpot(t: number, side: number): Vec2 {
   const n = LOOP_SAMPLES.length - 1;
@@ -240,7 +240,7 @@ export function loopSpot(t: number, side: number): Vec2 {
 
 /**
  * 고리 표본 i 의 자리와 방향.
- * (tx, tz): 진행 방향(서쪽으로 도는 쪽), (nx, nz): 고리 안쪽을 향하는 수직 방향
+ * (tx, tz): 진행 방향(-x 쪽으로 도는 쪽), (nx, nz): 고리 안쪽을 향하는 수직 방향
  */
 function loopFrame(i: number) {
   const s = LOOP_SAMPLES[i];
@@ -724,7 +724,7 @@ export type TrailSign = {
   height: number;
 };
 
-/** 고리 위에서 시작 지점으로부터 dist(m)만큼 dir(+1 서쪽, -1 동쪽)으로 간 표본 번호 */
+/** 고리 위에서 시작 지점으로부터 dist(m)만큼 dir(+1 = -x 쪽·시작 지점에서 볼 때 왼쪽, -1 = +x 쪽·오른쪽)으로 간 표본 번호 */
 function loopIndexFromStart(dist: number, dir: 1 | -1) {
   const n = LOOP_SAMPLES.length - 1;
   let walked = 0;
@@ -798,8 +798,8 @@ export const TRAIL_SIGNS: TrailSign[] = [
     width: 1.9,
     height: 1.04,
   },
-  startArrowSign('sign-start-west', 1, ['← 숲의 빈터'], '이 길로 돌면 숲의 빈터가 먼저 나와요.'),
-  startArrowSign('sign-start-east', -1, ['오두막 →'], '이 길로 돌면 오두막이 먼저 나와요.'),
+  startArrowSign('sign-start-left', 1, ['← 숲의 빈터'], '이 길로 돌면 숲의 빈터가 먼저 나와요.'),
+  startArrowSign('sign-start-right', -1, ['오두막 →'], '이 길로 돌면 오두막이 먼저 나와요.'),
   junctionSign(
     'sign-clearing',
     clearingJunction,

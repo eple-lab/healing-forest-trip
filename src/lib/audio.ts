@@ -19,7 +19,7 @@ type Environment = {
   fireIntensity: number;
 };
 
-/** 벽난로 소리 위치 (오두막 기준: 서쪽 벽 안쪽, 벽난로 중심 z) */
+/** 벽난로 소리 위치 (오두막 기준: 왼쪽(-x) 벽 안쪽, 벽난로 중심 z) */
 const FIRE = { x: CABIN.x - 4.9, z: CABIN.z - 0.4 };
 
 class ForestAudio {

@@ -76,8 +76,8 @@ export function DecorativeStumps() {
 /** 표지판 색 (위치·글자는 world.ts 의 TRAIL_SIGNS) */
 const SIGN_STYLE: Record<string, { background: string; color: string; border: string; width: number }> = {
   'sign-start': { background: '#5a422c', color: '#f2e3c8', border: '#7d5f3f', width: 512 },
-  'sign-start-west': { background: '#54402b', color: '#efe0c4', border: '#7a5c3c', width: 512 },
-  'sign-start-east': { background: '#4f3a27', color: '#f3e6cd', border: '#755737', width: 512 },
+  'sign-start-left': { background: '#54402b', color: '#efe0c4', border: '#7a5c3c', width: 512 },
+  'sign-start-right': { background: '#4f3a27', color: '#f3e6cd', border: '#755737', width: 512 },
   'sign-clearing': { background: '#54402b', color: '#efe0c4', border: '#7a5c3c', width: 512 },
   'sign-cabin': { background: '#4f3a27', color: '#f3e6cd', border: '#755737', width: 560 },
 };
