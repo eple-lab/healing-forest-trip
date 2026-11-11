@@ -193,11 +193,21 @@ export function signTexture(
   ctx.fillStyle = options.color ?? '#f2e9d8';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  const fontSize = Math.floor((height / (lines.length + 0.7)) * 0.62);
-  ctx.font = options.font ?? `600 ${fontSize}px "Malgun Gothic", "Apple SD Gothic Neo", sans-serif`;
+  // [BUG-09] 글자 크기를 (높이/(줄 수+0.7))×0.62로 정해 판에 비해 작았고(두 줄 280px에 64px),
+  // 폭이 넘치는 줄은 가로로 눌렸다 → 줄 간격의 72%로 정하고, 넘치는 줄만 글자를 줄여 폭에 맞춘다.
   const lineHeight = height / (lines.length + 0.4);
+  const maxWidth = width * 0.9;
+  const baseSize = Math.floor(lineHeight * 0.72);
+  const fontFor = (size: number) => `600 ${size}px "Malgun Gothic", "Apple SD Gothic Neo", sans-serif`;
   lines.forEach((line, i) => {
-    ctx.fillText(line, width / 2, lineHeight * (i + 0.75), width * 0.9);
+    if (options.font) {
+      ctx.font = options.font;
+    } else {
+      ctx.font = fontFor(baseSize);
+      const measured = ctx.measureText(line).width;
+      if (measured > maxWidth) ctx.font = fontFor(Math.floor((baseSize * maxWidth) / measured));
+    }
+    ctx.fillText(line, width / 2, lineHeight * (i + 0.75), maxWidth);
   });
   const texture = finish(canvas, 1);
   texture.repeat.set(1, 1);
