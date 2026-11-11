@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import * as THREE from 'three';
-import { STUMPS, terrainHeight } from '@/lib/world';
+import { STUMPS, loopSpot, terrainHeight } from '@/lib/world';
 import { stumpTexture } from '@/lib/textures';
 
 export function Stumps() {
@@ -46,11 +46,12 @@ export function Stumps() {
 export function DecorativeStumps() {
   const spots = useMemo(
     () => [
-      { x: -4.8, z: 58, h: 0.35, rot: 1.2 },
-      { x: 4.9, z: 12, h: 0.28, rot: 2.2 },
-      { x: -5.2, z: -52, h: 0.42, rot: 0.6 },
-      { x: 4.4, z: -120, h: 0.3, rot: 2.8 },
-      { x: -3.2, z: -139, h: 0.38, rot: 1.8 },
+      // 원형 길가 (loopSpot(길을 따라 간 비율, + 안쪽 / - 바깥쪽 거리))
+      { ...loopSpot(0.04, -4.8), h: 0.35, rot: 1.2 },
+      { ...loopSpot(0.25, 4.9), h: 0.28, rot: 2.2 },
+      { ...loopSpot(0.49, -5.2), h: 0.42, rot: 0.6 },
+      { ...loopSpot(0.68, 4.4), h: 0.3, rot: 2.8 },
+      { ...loopSpot(0.95, -3.2), h: 0.38, rot: 1.8 },
     ],
     [],
   );

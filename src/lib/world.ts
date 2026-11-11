@@ -46,22 +46,20 @@ export function mulberry32(seed: number) {
  * 1. 산길
  * ─────────────────────────────────────────────── */
 
-const PATH_CONTROL: Vec2[] = [
-  { x: 0, z: 76 },
-  { x: 1.5, z: 58 },
-  { x: -2, z: 40 },
-  { x: -3.2, z: 24 },
-  { x: 0.5, z: 6 },
-  { x: 4, z: -12 },
-  { x: 1, z: -30 },
-  { x: -4, z: -46 },
-  { x: 0, z: -62 }, // 숲의 빈터
-  { x: 0, z: -80 },
-  { x: 3, z: -96 },
-  { x: -2, z: -114 },
-  { x: -1, z: -130 },
-  { x: 0, z: -143 }, // 오두막 앞
-];
+/*
+ * 숲을 한 바퀴 도는 타원 고리 + 고리에서 빈터·오두막으로 들어가는 갈림길 2개.
+ * 고리는 시작 지점(타원의 +z 끝)에서 서쪽(-x)으로 돌아 다시 시작 지점으로 돌아온다.
+ * 구불거림은 예전 일자 길과 비슷하게: 약 18m마다 제어점, 좌우로 최대 3.5m.
+ */
+
+/** 원형 길(타원)의 중심과 반지름 */
+export const LOOP = { x: 0, z: -55, rx: 62, rz: 127 };
+const LOOP_POINTS = 34;
+const LOOP_WIGGLE = 3.5;
+/** 오두막 갈림길이 고리에서 갈라지는 지점 (고리 동쪽) */
+const CABIN_JUNCTION: Vec2 = { x: 53, z: -125 };
+/** 빈터 갈림길이 끝나는 곳: 빈터 중심에서 이만큼 떨어진 곳(벤치 바깥) */
+const CLEARING_SPUR_END = 11;
 
 function catmull(p0: number, p1: number, p2: number, p3: number, t: number) {
   const t2 = t * t;
@@ -75,7 +73,8 @@ function catmull(p0: number, p1: number, p2: number, p3: number, t: number) {
   );
 }
 
-export type PathSample = { x: number; z: number; h: number; t: number };
+export type TrailId = 'loop' | 'clearing' | 'cabin';
+export type PathSample = { x: number; z: number; h: number; t: number; trail: TrailId };
 
 function rawHeight(x: number, z: number) {
   return (
@@ -86,39 +85,70 @@ function rawHeight(x: number, z: number) {
   );
 }
 
-function buildPath(): PathSample[] {
+const STEPS_PER_SEGMENT = 26;
+
+/** 제어점을 Catmull-Rom 으로 이어 표본을 만든다. closed 면 마지막 표본이 첫 표본과 같다. */
+function buildTrail(control: Vec2[], trail: TrailId, closed: boolean): PathSample[] {
   const out: PathSample[] = [];
-  const stepsPerSegment = 26;
-  const total = PATH_CONTROL.length - 1;
-  for (let i = 0; i < total; i++) {
-    const p0 = PATH_CONTROL[Math.max(0, i - 1)];
-    const p1 = PATH_CONTROL[i];
-    const p2 = PATH_CONTROL[i + 1];
-    const p3 = PATH_CONTROL[Math.min(total, i + 2)];
-    for (let s = 0; s < stepsPerSegment; s++) {
-      const t = s / stepsPerSegment;
+  const n = control.length;
+  const segments = closed ? n : n - 1;
+  const at = (i: number) =>
+    closed ? control[((i % n) + n) % n] : control[clamp(i, 0, n - 1)];
+  for (let i = 0; i < segments; i++) {
+    const p0 = at(i - 1);
+    const p1 = at(i);
+    const p2 = at(i + 1);
+    const p3 = at(i + 2);
+    for (let s = 0; s < STEPS_PER_SEGMENT; s++) {
+      const t = s / STEPS_PER_SEGMENT;
       const x = catmull(p0.x, p1.x, p2.x, p3.x, t);
       const z = catmull(p0.z, p1.z, p2.z, p3.z, t);
-      out.push({
-        x,
-        z,
-        h: rawHeight(x, z),
-        t: (i + t) / total,
-      });
+      out.push({ x, z, h: rawHeight(x, z), t: (i + t) / segments, trail });
     }
   }
-  const last = PATH_CONTROL[total];
-  out.push({ x: last.x, z: last.z, h: rawHeight(last.x, last.z), t: 1 });
+  const last = closed ? control[0] : control[n - 1];
+  out.push({ x: last.x, z: last.z, h: rawHeight(last.x, last.z), t: 1, trail });
   return out;
 }
 
-export const PATH_SAMPLES = buildPath();
+/** 타원 둘레를 길이 기준으로 고르게 나눈 제어점 (시작 지점은 흔들지 않는다) */
+function loopControl(): Vec2[] {
+  const { x: cx, z: cz, rx, rz } = LOOP;
+  const fine = 2400;
+  const pts: Vec2[] = [];
+  const arc: number[] = [0];
+  for (let i = 0; i <= fine; i++) {
+    const a = (i / fine) * Math.PI * 2;
+    pts.push({ x: cx - rx * Math.sin(a), z: cz + rz * Math.cos(a) });
+    if (i > 0) arc.push(arc[i - 1] + Math.hypot(pts[i].x - pts[i - 1].x, pts[i].z - pts[i - 1].z));
+  }
+  const total = arc[fine];
+  const rnd = mulberry32(20261111);
+  const out: Vec2[] = [];
+  let j = 0;
+  for (let k = 0; k < LOOP_POINTS; k++) {
+    const target = (k / LOOP_POINTS) * total;
+    while (arc[j + 1] < target) j++;
+    const p = pts[j];
+    // 바깥쪽 법선
+    let nx = (p.x - cx) / (rx * rx);
+    let nz = (p.z - cz) / (rz * rz);
+    const len = Math.hypot(nx, nz) || 1;
+    nx /= len;
+    nz /= len;
+    const wiggle = k === 0 ? 0 : (rnd() * 2 - 1) * LOOP_WIGGLE;
+    out.push({ x: p.x + nx * wiggle, z: p.z + nz * wiggle });
+  }
+  return out;
+}
 
-export function nearestPath(x: number, z: number) {
+const LOOP_SAMPLES = buildTrail(loopControl(), 'loop', true);
+
+function nearestIn(samples: PathSample[], x: number, z: number) {
   let best = Infinity;
-  let bestSample = PATH_SAMPLES[0];
-  for (let i = 0; i < PATH_SAMPLES.length; i++) {
-    const s = PATH_SAMPLES[i];
+  let bestSample = samples[0];
+  for (let i = 0; i < samples.length; i++) {
+    const s = samples[i];
     const d = (s.x - x) * (s.x - x) + (s.z - z) * (s.z - z);
     if (d < best) {
       best = d;
@@ -126,6 +156,98 @@ export function nearestPath(x: number, z: number) {
     }
   }
   return { distance: Math.sqrt(best), sample: bestSample };
+}
+
+/** 고리 위 점 j 에서 목적지 end 까지, 가운데를 살짝 휘게 한 갈림길 제어점 */
+function spurControl(j: Vec2, end: Vec2, bend: number, approach?: Vec2): Vec2[] {
+  const tip = approach ?? end;
+  const dx = tip.x - j.x;
+  const dz = tip.z - j.z;
+  const len = Math.hypot(dx, dz) || 1;
+  const px = -dz / len;
+  const pz = dx / len;
+  const mid = (f: number, b: number): Vec2 => ({
+    x: j.x + dx * f + px * b,
+    z: j.z + dz * f + pz * b,
+  });
+  const pts = [j, mid(0.36, bend), mid(0.7, -bend * 0.6)];
+  if (approach) pts.push(approach);
+  pts.push(end);
+  return pts;
+}
+
+/** 빈터 갈림길: 고리에서 빈터 중심에 가장 가까운 곳에서 빈터 가장자리 안쪽(벤치 바깥)까지 */
+const clearingJunction = nearestIn(LOOP_SAMPLES, worldFile.clearing.x, worldFile.clearing.z).sample;
+const clearingDir = Math.atan2(
+  clearingJunction.z - worldFile.clearing.z,
+  clearingJunction.x - worldFile.clearing.x,
+);
+const CLEARING_SPUR = buildTrail(
+  spurControl(
+    clearingJunction,
+    {
+      x: worldFile.clearing.x + Math.cos(clearingDir) * CLEARING_SPUR_END,
+      z: worldFile.clearing.z + Math.sin(clearingDir) * CLEARING_SPUR_END,
+    },
+    1.2,
+  ),
+  'clearing',
+  false,
+);
+
+/** 오두막 갈림길: 고리 동쪽에서 갈라져 앞마당 쪽에서 문 정면(+z)으로 다가간다 */
+const cabinJunction = nearestIn(LOOP_SAMPLES, CABIN_JUNCTION.x, CABIN_JUNCTION.z).sample;
+const CABIN_SPUR = buildTrail(
+  spurControl(
+    cabinJunction,
+    { x: worldFile.cabin.x, z: worldFile.cabin.z + 9 },
+    1.8,
+    { x: worldFile.cabin.x + 4, z: worldFile.cabin.z + 16 },
+  ),
+  'cabin',
+  false,
+);
+
+/** 길 묶음. 길마다 따로 그린다. */
+export const TRAILS: { id: TrailId; closed: boolean; samples: PathSample[] }[] = [
+  { id: 'loop', closed: true, samples: LOOP_SAMPLES },
+  { id: 'clearing', closed: false, samples: CLEARING_SPUR },
+  { id: 'cabin', closed: false, samples: CABIN_SPUR },
+];
+
+/** 모든 길의 표본 (지형 다지기·가장 가까운 길 찾기용) */
+export const PATH_SAMPLES: PathSample[] = TRAILS.flatMap((trail) => trail.samples);
+
+/** 갈림길이 고리에서 갈라지는 지점 (이정표 자리) */
+export const JUNCTIONS = {
+  clearing: { x: clearingJunction.x, z: clearingJunction.z },
+  cabin: { x: cabinJunction.x, z: cabinJunction.z },
+};
+
+export function nearestPath(x: number, z: number) {
+  return nearestIn(PATH_SAMPLES, x, z);
+}
+
+/**
+ * 고리 위 한 점에서 옆으로 비켜난 자리.
+ * t: 고리를 따라 간 비율(0 = 시작 지점, 서쪽으로 돈다), side: 고리 안쪽(+)·바깥쪽(-)으로 비켜날 거리(m)
+ */
+export function loopSpot(t: number, side: number): Vec2 {
+  const n = LOOP_SAMPLES.length - 1;
+  const i = clamp(Math.round((((t % 1) + 1) % 1) * n), 0, n - 1);
+  const s = LOOP_SAMPLES[i];
+  const next = LOOP_SAMPLES[i + 1];
+  const tx = next.x - s.x;
+  const tz = next.z - s.z;
+  const len = Math.hypot(tx, tz) || 1;
+  // 진행 방향에 수직인 방향을 고리 중심 쪽(안쪽)으로 맞춘다
+  let nx = -tz / len;
+  let nz = tx / len;
+  if (nx * (LOOP.x - s.x) + nz * (LOOP.z - s.z) < 0) {
+    nx = -nx;
+    nz = -nz;
+  }
+  return { x: s.x + nx * side, z: s.z + nz * side };
 }
 
 /* ───────────────────────────────────────────────
@@ -463,8 +585,9 @@ export const TREE_COLLIDERS: TreeCollider[] = TREES.filter(
 function generateBushes(): Bush[] {
   const rnd = mulberry32(77);
   const out: Bush[] = [];
-  for (let i = 0; i < 260; i++) {
-    const x = (rnd() * 2 - 1) * 55;
+  // 원형 길 바깥(x ±62 너머)까지 덮도록 x ±85, 개수는 예전 밀도(±55에 260개)에 맞춘다
+  for (let i = 0; i < 402; i++) {
+    const x = (rnd() * 2 - 1) * 85;
     const z = 90 - rnd() * 260;
     if (pointBlocked(x, z)) continue;
     out.push({ x, z, scale: 0.5 + rnd() * 0.75, tint: rnd() });
@@ -476,8 +599,9 @@ export const BUSHES = generateBushes();
 function generateRocks(): Rock[] {
   const rnd = mulberry32(991);
   const out: Rock[] = [];
-  for (let i = 0; i < 90; i++) {
-    const x = (rnd() * 2 - 1) * 60;
+  // 원형 길 바깥까지 x ±85, 개수는 예전 밀도(±60에 90개)에 맞춘다
+  for (let i = 0; i < 128; i++) {
+    const x = (rnd() * 2 - 1) * 85;
     const z = 92 - rnd() * 270;
     if (pointBlocked(x, z)) continue;
     out.push({ x, z, scale: 0.22 + rnd() * 0.7, rot: rnd() * Math.PI * 2 });
@@ -499,8 +623,9 @@ export const ROCKS = generateRocks();
 function generateTufts(): Tuft[] {
   const rnd = mulberry32(404);
   const out: Tuft[] = [];
-  for (let i = 0; i < 1100; i++) {
-    const x = (rnd() * 2 - 1) * 65;
+  // 원형 길 바깥까지 x ±85, 개수는 예전 밀도(±65에 1100개)에 맞춘다
+  for (let i = 0; i < 1438; i++) {
+    const x = (rnd() * 2 - 1) * 85;
     const z = 92 - rnd() * 275;
     if (nearestPath(x, z).distance < 1.7) continue;
     if (dist2d(x, z, CLEARING.x, CLEARING.z) < 5) continue;
@@ -527,14 +652,35 @@ export const TUFTS = generateTufts();
 
 export type Stump = { id: string; x: number; z: number; h: number; facing: number };
 
+/**
+ * 빈터 소품 배치를 돌리는 각도.
+ * 예전 배치는 벤치 사이 가장 넓은 틈(3.6~5.8rad, 가운데 4.7rad)으로 길이 들어왔다.
+ * 갈림길이 들어오는 방향(clearingDir)에 그 틈이 오도록 배치 전체를 돌린다.
+ */
+const CLEARING_TURN = clearingDir - 4.7;
+const turnAroundClearing = (dx: number, dz: number): Vec2 => ({
+  x: CLEARING.x + dx * Math.cos(CLEARING_TURN) - dz * Math.sin(CLEARING_TURN),
+  z: CLEARING.z + dx * Math.sin(CLEARING_TURN) + dz * Math.cos(CLEARING_TURN),
+});
+
+/**
+ * 앉을 수 있는 그루터기.
+ * 길가 그루터기는 원형 길을 따라 간 비율(t)과 길에서 비켜난 거리(side, + 안쪽 / - 바깥쪽)로 놓는다.
+ * 갈림길(빈터 t≈0.21, 오두막 t≈0.64) 근처는 피한다.
+ */
+const TRAIL_STUMPS = [
+  { id: 'stump-trail-1', t: 0.06, side: 3, h: 0.5 },
+  { id: 'stump-trail-2', t: 0.13, side: -3, h: 0.46 },
+  { id: 'stump-trail-3', t: 0.32, side: 3, h: 0.55 },
+  { id: 'stump-trail-4', t: 0.45, side: -3, h: 0.44 },
+  { id: 'stump-trail-5', t: 0.78, side: 3, h: 0.52 },
+  { id: 'stump-trail-6', t: 0.9, side: -3, h: 0.47 },
+];
+
 export const STUMPS: Stump[] = [
-  { id: 'stump-trail-1', x: 2.9, z: 46, h: 0.5, facing: 0 },
-  { id: 'stump-trail-2', x: -3.4, z: 20, h: 0.46, facing: 0 },
-  { id: 'stump-trail-3', x: 3.2, z: -6, h: 0.55, facing: 0 },
-  { id: 'stump-trail-4', x: -2.8, z: -34, h: 0.44, facing: 0 },
-  { id: 'stump-clearing', x: 6.2, z: -69, h: 0.5, facing: 0 },
-  { id: 'stump-trail-5', x: -2.4, z: -106, h: 0.52, facing: 0 },
-  { id: 'stump-trail-6', x: 2.6, z: -130, h: 0.47, facing: 0 },
+  ...TRAIL_STUMPS.map(({ id, t, side, h }) => ({ id, ...loopSpot(t, side), h, facing: 0 })),
+  // 빈터 그루터기: 예전 자리(빈터 중심에서 x +6.2, z -7)를 빈터 배치와 함께 돌린다
+  { id: 'stump-clearing', ...turnAroundClearing(6.2, -7), h: 0.5, facing: 0 },
 ].map((s) => {
   const near = nearestPath(s.x, s.z);
   return {
@@ -544,15 +690,16 @@ export const STUMPS: Stump[] = [
 });
 
 export const CLEARING_PROPS = {
-  firePit: { x: 0, z: -62 },
+  firePit: { x: CLEARING.x, z: CLEARING.z },
   sign: { x: 2.6, z: -46 },
   benchCount: 5,
   lanternRadius: 8.4,
 };
 
 /** 빈터를 둘러싼 통나무 벤치 (길이 들어오는 방향은 비워 둔다) */
-export const CLEARING_BENCHES = [0.1, 1.0, 2.3, 3.6, 5.8].map((angle) => {
+export const CLEARING_BENCHES = [0.1, 1.0, 2.3, 3.6, 5.8].map((base) => {
   const radius = 9.4;
+  const angle = base + CLEARING_TURN;
   return {
     x: CLEARING.x + Math.cos(angle) * radius,
     z: CLEARING.z + Math.sin(angle) * radius,

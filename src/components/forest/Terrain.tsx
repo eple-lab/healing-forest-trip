@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import * as THREE from 'three';
-import { PATH_SAMPLES, terrainHeight } from '@/lib/world';
+import { PATH_SAMPLES, TRAILS, terrainHeight } from '@/lib/world';
 import { trailTexture } from '@/lib/textures';
 
 const dummy = new THREE.Object3D();
@@ -73,48 +73,60 @@ function distanceToTrail(x: number, z: number) {
 
 export function Trail() {
   const { geometry, texture } = useMemo(() => {
-    const samples = PATH_SAMPLES;
     const positions: number[] = [];
     const uvs: number[] = [];
     const indices: number[] = [];
-    let distance = 0;
 
-    for (let i = 0; i < samples.length; i++) {
-      const s = samples[i];
-      const prev = samples[Math.max(0, i - 1)];
-      const next = samples[Math.min(samples.length - 1, i + 1)];
-      let tx = next.x - prev.x;
-      let tz = next.z - prev.z;
-      const len = Math.hypot(tx, tz) || 1;
-      tx /= len;
-      tz /= len;
-      const nx = -tz;
-      const nz = tx;
+    // 길마다 띠를 하나씩 만든다. 닫힌 길(원형 길)은 마지막 표본이 첫 표본과 같으므로
+    // 양 끝의 방향과 폭을 첫 표본에 맞춰 이음매가 생기지 않게 한다.
+    for (const trail of TRAILS) {
+      const samples = trail.samples;
+      const n = samples.length;
+      const base = positions.length / 3;
+      let distance = 0;
+      // 무늬 한 칸 길이(약 3.2m). 닫힌 길은 한 바퀴가 칸 수의 정수배가 되게 맞춰 이음매 무늬가 이어지게 한다.
+      let total = 0;
+      for (let i = 1; i < n; i++) total += Math.hypot(samples[i].x - samples[i - 1].x, samples[i].z - samples[i - 1].z);
+      const tile = trail.closed ? total / Math.max(1, Math.round(total / 3.2)) : 3.2;
 
-      if (i > 0) {
-        distance += Math.hypot(s.x - prev.x, s.z - prev.z);
-      }
-      const width =
-        1.42 +
-        Math.sin(i * 0.41) * 0.16 +
-        Math.sin(i * 0.13 + 2) * 0.12;
+      for (let i = 0; i < n; i++) {
+        const s = samples[i];
+        const prev = trail.closed && i === 0 ? samples[n - 2] : samples[Math.max(0, i - 1)];
+        const next = trail.closed && i === n - 1 ? samples[1] : samples[Math.min(n - 1, i + 1)];
+        let tx = next.x - prev.x;
+        let tz = next.z - prev.z;
+        const len = Math.hypot(tx, tz) || 1;
+        tx /= len;
+        tz /= len;
+        const nx = -tz;
+        const nz = tx;
 
-      const lx = s.x + nx * width;
-      const lz = s.z + nz * width;
-      const rx = s.x - nx * width;
-      const rz = s.z - nz * width;
+        if (i > 0) {
+          distance += Math.hypot(s.x - samples[i - 1].x, s.z - samples[i - 1].z);
+        }
+        const w = trail.closed && i === n - 1 ? 0 : i;
+        const width =
+          1.42 +
+          Math.sin(w * 0.41) * 0.16 +
+          Math.sin(w * 0.13 + 2) * 0.12;
 
-      positions.push(lx, terrainHeight(lx, lz) + 0.035, lz);
-      positions.push(rx, terrainHeight(rx, rz) + 0.035, rz);
-      uvs.push(0, distance / 3.2);
-      uvs.push(1, distance / 3.2);
+        const lx = s.x + nx * width;
+        const lz = s.z + nz * width;
+        const rx = s.x - nx * width;
+        const rz = s.z - nz * width;
 
-      if (i > 0) {
-        const a = (i - 1) * 2;
-        const b = a + 1;
-        const c = i * 2;
-        const d = c + 1;
-        indices.push(a, c, b, b, c, d);
+        positions.push(lx, terrainHeight(lx, lz) + 0.035, lz);
+        positions.push(rx, terrainHeight(rx, rz) + 0.035, rz);
+        uvs.push(0, distance / tile);
+        uvs.push(1, distance / tile);
+
+        if (i > 0) {
+          const a = base + (i - 1) * 2;
+          const b = a + 1;
+          const c = base + i * 2;
+          const d = c + 1;
+          indices.push(a, c, b, b, c, d);
+        }
       }
     }
 

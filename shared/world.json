@@ -1,8 +1,8 @@
 {
   "start": { "x": 0, "z": 72, "yaw": 0 },
-  "clearing": { "x": 0, "z": -62, "radius": 23, "chatRadius": 24 },
+  "clearing": { "x": -25, "z": -32, "radius": 23, "chatRadius": 24 },
   "cabin": {
-    "x": 0,
+    "x": 12,
     "z": -152,
     "halfW": 5,
     "halfD": 5,

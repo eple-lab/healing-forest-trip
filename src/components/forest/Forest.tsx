@@ -8,6 +8,7 @@ import {
   ROCKS,
   TREES,
   TUFTS,
+  loopSpot,
   terrainHeight,
   type Tree,
 } from '@/lib/world';
@@ -229,15 +230,22 @@ function Tufts() {
 
 function Mushrooms() {
   const groups = useMemo(() => {
+    // 원형 길가: [길을 따라 간 비율, 길에서 비켜난 거리(+ 안쪽 / - 바깥쪽)]
+    const trailSpots: [number, number][] = [
+      [0.03, 3.3],
+      [0.1, -3.6],
+      [0.17, 4.2],
+      [0.27, -4.1],
+      [0.38, 4.6],
+      [0.5, -7.2],
+      [0.7, -3.2],
+      [0.84, 3.4],
+    ];
     const spots = [
-      [3.3, 52],
-      [-3.6, 31],
-      [4.2, 2],
-      [-4.1, -22],
-      [4.6, -40],
-      [7.2, -73],
-      [-3.2, -100],
-      [3.4, -137],
+      ...trailSpots.map(([t, side]) => {
+        const p = loopSpot(t, side);
+        return [p.x, p.z];
+      }),
       // 오두막 양옆 (오두막 기준)
       [CABIN.x - 9.4, CABIN.z + 2],
       [CABIN.x + 8.4, CABIN.z + 6],
@@ -280,10 +288,11 @@ function Mushrooms() {
 function FallenLogs() {
   const logs = useMemo(
     () => [
-      { x: -5.5, z: 44, rot: 1.1, len: 3.2 },
-      { x: 5.8, z: -18, rot: 2.3, len: 2.6 },
-      { x: -6.4, z: -88, rot: 0.5, len: 3.6 },
-      { x: 6.9, z: -132, rot: 1.9, len: 2.8 },
+      // 원형 길가 (t: 길을 따라 간 비율, side: + 안쪽 / - 바깥쪽)
+      { ...loopSpot(0.11, -5.5), rot: 1.1, len: 3.2 },
+      { ...loopSpot(0.35, 5.8), rot: 2.3, len: 2.6 },
+      { ...loopSpot(0.58, -6.4), rot: 0.5, len: 3.6 },
+      { ...loopSpot(0.86, 6.9), rot: 1.9, len: 2.8 },
     ],
     [],
   );
