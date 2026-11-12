@@ -939,6 +939,16 @@ img {
 .dev-panel button[aria-pressed='true'] {
   background: rgba(242, 181, 107, 0.22);
 }
+/* 좁은 화면에서는 조이스틱·E 버튼을 가리지 않게 위쪽(상태 줄 아래)에 둔다 */
+@media (max-width: 720px) {
+  .dev-panel {
+    top: calc(max(10px, env(safe-area-inset-top)) + 84px);
+    bottom: auto;
+    left: 10px;
+    right: 10px;
+    font-size: 10px;
+  }
+}
 
 .hud-meta {
   position: absolute;
