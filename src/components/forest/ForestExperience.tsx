@@ -29,6 +29,7 @@ import { NoticeBridge } from './NoticeBridge';
 import { HUD } from '@/components/ui/HUD';
 import { ChatPanel } from '@/components/ui/ChatPanel';
 import { HelpPanel } from '@/components/ui/HelpPanel';
+import { detectQuality } from '@/lib/quality';
 import { DevPanel } from '@/components/ui/DevPanel';
 import { MiniMap } from '@/components/ui/MiniMap';
 import { NoticePanel } from '@/components/ui/NoticePanel';
@@ -97,7 +98,10 @@ export function ForestExperience({
 
   // 처음 방문한 사용자에게 캐릭터 선택을 강제한다.
   const [checked, setChecked] = useState(false);
+  // [BUG-12] CPU 로 그리는 PC 면 가벼운 모드. Canvas 를 만들기 전(checked 전)에 정해야 안티앨리어싱 설정이 반영된다.
+  const [lowQuality, setLowQuality] = useState(false);
   useEffect(() => {
+    setLowQuality(detectQuality().low);
     const stored = readStoredCharacter();
     const next = initialCharacter ?? stored?.id ?? null;
     if (next) {
@@ -133,12 +137,13 @@ export function ForestExperience({
       <MultiplayerBridge />
       <NoticeBridge />
       <Canvas
-        shadows
-        dpr={[1, 1.5]}
+        // [BUG-12] 가벼운 모드: 그림자 끄기, 해상도 배율 0.75
+        shadows={!lowQuality}
+        dpr={lowQuality ? 0.75 : [1, 1.5]}
         frameloop={frameloop}
         camera={{ position: [START.x, 1.7, START.z], fov: 68, near: 0.08, far: 720 }}
         gl={{
-          antialias: true,
+          antialias: !lowQuality,
           powerPreference: 'high-performance',
           stencil: false,
           alpha: false,

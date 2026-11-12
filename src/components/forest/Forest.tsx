@@ -12,6 +12,7 @@ import {
   terrainHeight,
   type Tree,
 } from '@/lib/world';
+import { isLowQuality } from '@/lib/quality';
 
 type LayerItem = { matrix: THREE.Matrix4; color?: THREE.Color };
 
@@ -216,7 +217,9 @@ function Tufts() {
     const quaternion = new THREE.Quaternion();
     const scale = new THREE.Vector3();
     const up = new THREE.Vector3(0, 1, 0);
-    return TUFTS.map((tuft) => {
+    // [BUG-12] 가벼운 모드에서는 풀 무더기를 절반만 그린다
+    const tufts = isLowQuality() ? TUFTS.filter((_, i) => i % 2 === 0) : TUFTS;
+    return tufts.map((tuft) => {
       position.set(tuft.x, terrainHeight(tuft.x, tuft.z) + 0.18 * tuft.scale, tuft.z);
       quaternion.setFromAxisAngle(up, tuft.rot);
       scale.set(tuft.scale * 0.8, tuft.scale, tuft.scale * 0.8);

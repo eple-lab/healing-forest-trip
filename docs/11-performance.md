@@ -18,6 +18,7 @@
 ### 렌더링
 
 - **dpr 상한 1.5** — 고해상도 화면에서 픽셀 수 폭증을 막는다(기본 브라우저 Chrome 기준).
+- **가벼운 모드(BUG-12)** — 처음 들어올 때 WebGL 그래픽 장치 이름을 읽어 `Basic Render`·`SwiftShader`·`llvmpipe` 같은 소프트웨어 렌더러(그래픽 가속 없이 CPU 로 그림)면 그림자 끄기, dpr 0.75, 안티앨리어싱 끄기, 풀 무더기 절반. `?quality=low|high` 로 덮어쓸 수 있다(`src/lib/quality.ts`). 같은 헤드리스(SwiftShader)에서 약 2.5배(0.41 → 1.03 fps). 그래픽 가속이 있는 PC 는 그대로.
 - **숨겨진 탭 프레임루프 중지** — `visibilitychange` 시 `frameloop='never'` 로 렌더/계산을 멈춘다.
 - **원격 플레이어 컬링** — 가까운 12명·반경 72m 만 렌더하고, 25m 밖은 그림자를 끈다.
 - **공유 geometry/material** — 같은 색의 원격 캐릭터는 재질을 공유한다.
