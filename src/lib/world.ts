@@ -404,6 +404,14 @@ export const WINDOW_LOCAL = {
 };
 export const WINDOW = cabinToWorld(WINDOW_LOCAL);
 
+/**
+ * [BUG-10] 현관 데크 앞 계단. 데크 바깥쪽(남쪽 +z)으로 run 간격마다 한 칸씩 내려간다.
+ * Cabin.tsx(모양)와 groundAt(밟는 높이)이 같은 값을 쓴다.
+ */
+export const PORCH_STEPS = { count: 2, rise: 0.11, run: 0.34, width: 2.4, depth: 0.4 };
+/** i 번째 계단(0 = 데크 바로 앞)의 윗면 높이 */
+export const porchStepTop = (i: number) => CABIN_LOCAL.floor1 - 0.055 - i * PORCH_STEPS.rise;
+
 /* ───────────────────────────────────────────────
  * 3. 지형 높이
  * ─────────────────────────────────────────────── */
@@ -458,9 +466,26 @@ export function groundAt(
     { y: terrainHeight(x, z), surface: 'grass' },
   ];
 
-  // 마당 / 현관 데크
-  if (inRect(x, z, CABIN.x - 3.5, CABIN.x + 3.5, CABIN.porchZ, CABIN.frontZ + 0.02)) {
+  // 현관 데크: 앞벽(frontZ)에서 바깥쪽(남쪽 +z) porchZ 까지
+  // [BUG-10] 예전에는 범위가 porchZ ~ frontZ 로 뒤집혀 한 번도 맞지 않았다(발이 데크에 잠김)
+  if (inRect(x, z, CABIN.x - 3.5, CABIN.x + 3.5, CABIN.frontZ - 0.02, CABIN.porchZ + 0.05)) {
     candidates.push({ y: CABIN.floor1, surface: 'wood' });
+  }
+  // 현관 계단
+  for (let i = 0; i < PORCH_STEPS.count; i++) {
+    const cz = CABIN.porchZ + PORCH_STEPS.run * (i + 1);
+    if (
+      inRect(
+        x,
+        z,
+        CABIN.x - PORCH_STEPS.width / 2,
+        CABIN.x + PORCH_STEPS.width / 2,
+        cz - PORCH_STEPS.depth / 2,
+        cz + PORCH_STEPS.depth / 2,
+      )
+    ) {
+      candidates.push({ y: porchStepTop(i), surface: 'wood' });
+    }
   }
   // 1층
   if (inRect(x, z, CABIN.x - CABIN.halfW, CABIN.x + CABIN.halfW, CABIN.backZ, CABIN.frontZ)) {

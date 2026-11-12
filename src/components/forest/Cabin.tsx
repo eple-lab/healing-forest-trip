@@ -17,6 +17,8 @@ import {
   CABIN as CABIN_WORLD,
   CABIN_LOCAL as CABIN,
   FURNITURE_LOCAL as FURNITURE,
+  PORCH_STEPS,
+  porchStepTop,
   STAIRS_LOCAL as STAIRS,
   STAIR_HOLE_LOCAL as STAIR_HOLE,
   WINDOW_LOCAL as WINDOW,
@@ -234,10 +236,13 @@ function Roof() {
 function Porch() {
   const planks = useMemo(() => plankTexture(), []);
   const glow = useMemo(() => glowTexture(), []);
-  const depth = FRONT - CABIN.porchZ;
+  // [BUG-10] 데크가 앞벽보다 -z 쪽에 있다고 보고 쓴 부호(깊이 음수, 계단이 데크 아래 등)를 바로잡는다.
+  // 데크는 앞벽(FRONT)에서 바깥쪽(OUT, 남쪽 +z)으로 porchZ 까지다.
+  const OUT = Math.sign(CABIN.porchZ - FRONT);
+  const depth = Math.abs(CABIN.porchZ - FRONT);
   const posts: [number, number][] = [
-    [-3.15, CABIN.porchZ + 0.35],
-    [3.15, CABIN.porchZ + 0.35],
+    [-3.15, CABIN.porchZ - OUT * 0.35],
+    [3.15, CABIN.porchZ - OUT * 0.35],
   ];
   return (
     <group>
@@ -248,20 +253,20 @@ function Porch() {
       </mesh>
       {/* 데크 받침 */}
       {[-3, 0, 3].map((x) => (
-        <mesh key={x} position={[x, (F1 - 0.1) / 2, CABIN.porchZ + 0.3]} castShadow>
+        <mesh key={x} position={[x, (F1 - 0.1) / 2, CABIN.porchZ - OUT * 0.3]} castShadow>
           <boxGeometry args={[0.16, F1 - 0.1, 0.16]} />
           <meshStandardMaterial color="#4c3727" roughness={1} />
         </mesh>
       ))}
-      {/* 계단 */}
-      {[0, 1].map((i) => (
+      {/* 계단 (데크 바깥쪽, groundAt 의 PORCH_STEPS 와 같은 값) */}
+      {Array.from({ length: PORCH_STEPS.count }, (_, i) => (
         <mesh
           key={i}
-          position={[0, F1 - 0.11 - i * 0.11, CABIN.porchZ - 0.34 - i * 0.34]}
+          position={[0, porchStepTop(i) - PORCH_STEPS.rise / 2, CABIN.porchZ + OUT * PORCH_STEPS.run * (i + 1)]}
           receiveShadow
           castShadow
         >
-          <boxGeometry args={[2.4, 0.11, 0.4]} />
+          <boxGeometry args={[PORCH_STEPS.width, PORCH_STEPS.rise, PORCH_STEPS.depth]} />
           <meshStandardMaterial color="#6e5138" roughness={1} />
         </mesh>
       ))}
@@ -278,12 +283,12 @@ function Porch() {
           </mesh>
         </group>
       ))}
-      <mesh position={[0, 3.3, CABIN.porchZ + 0.1]} rotation-x={0.12} castShadow>
+      <mesh position={[0, 3.3, CABIN.porchZ - OUT * 0.1]} rotation-x={-OUT * 0.12} castShadow>
         <boxGeometry args={[7.2, 0.14, depth + 0.7]} />
         <meshStandardMaterial color="#4a392b" roughness={1} />
       </mesh>
       {/* 매달린 등 */}
-      <group position={[0, 2.72, CABIN.porchZ + 0.55]}>
+      <group position={[0, 2.72, CABIN.porchZ - OUT * 0.55]}>
         <mesh position={[0, 0.24, 0]}>
           <cylinderGeometry args={[0.012, 0.012, 0.48, 5]} />
           <meshStandardMaterial color="#3a2c1f" roughness={1} />
