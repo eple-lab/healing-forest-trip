@@ -74,10 +74,13 @@ export function sunState(clock: KoreaClock): SunState {
   const angle = ((t - 6) / 24) * Math.PI * 2;
   const sx = Math.cos(angle);
   const sy = Math.sin(angle);
-  const sz = -0.38;
+  // [BUG-11] 해·달은 동쪽(+x)에서 떠 서쪽(-x)으로 지고, 북반구(한국)라 하늘 남쪽(+z)으로 기운다.
+  // 방위: 북쪽 = -z, 동쪽 = +x (docs/21-directions.md). 예전에는 -0.38 이라 북쪽으로 기울었다.
+  const sz = 0.38;
   const len = Math.hypot(sx, sy, sz) || 1;
   const sun: [number, number, number] = [sx / len, sy / len, sz / len];
-  const moon: [number, number, number] = [-sun[0], -sun[1], -sun[2]];
+  // 달은 해의 반대편에서 뜨고 지되, 해처럼 남쪽(+z) 하늘로 기운다
+  const moon: [number, number, number] = [-sun[0], -sun[1], sun[2]];
   const day = smooth(-0.05, 0.2, sy);
   const twilight = Math.exp(-Math.pow(sy / 0.16, 2)) * (1 - Math.max(0, sy - 0.12) * 4);
   return {
