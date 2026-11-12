@@ -899,6 +899,47 @@ img {
   text-align: center;
 }
 
+/* [FEAT-15] 개발 모드 전용 테스트 패널 (배포본에는 그려지지 않는다) */
+.dev-panel {
+  position: absolute;
+  left: 16px;
+  bottom: 44px;
+  z-index: 30;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  pointer-events: auto;
+}
+.dev-panel-title {
+  font-weight: 700;
+  color: #f2b56b;
+  letter-spacing: 0.04em;
+  margin-right: 2px;
+}
+.dev-panel-sep {
+  width: 1px;
+  height: 14px;
+  margin: 0 3px;
+  background: var(--line);
+}
+.dev-panel button {
+  padding: 3px 7px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.06);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.dev-panel button:hover,
+.dev-panel button[aria-pressed='true'] {
+  background: rgba(242, 181, 107, 0.22);
+}
+
 .hud-meta {
   position: absolute;
   top: calc(max(16px, env(safe-area-inset-top)) + 56px);

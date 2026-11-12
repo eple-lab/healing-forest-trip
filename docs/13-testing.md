@@ -159,7 +159,22 @@ git config core.hooksPath .githooks
 ```powershell
 node scripts/smoke-visual.mjs   # 랜딩/로그인/걷기/도움말/채팅/모바일 화면 + 콘솔 오류 수집
 node scripts/smoke-two.mjs      # 2탭 접속·이동(players:move 배치)·즉시 퇴장 확인
+node scripts/smoke-scene.mjs cabin-noon "spawn=cabin&time=13:00" up   # 장소·시간을 정해 한 장(+하늘) 찍기 (FEAT-15)
 ```
+
+### 개발 모드 테스트 도구 (FEAT-15)
+
+`npm run dev` 로 띄운 개발 모드에서만 쓸 수 있다. 배포본(`NODE_ENV=production`)에서는 패널이 없고 주소 옵션도 무시된다.
+
+- 화면 왼쪽 아래 **DEV** 패널: [시작] [빈터] [오두막] 순간이동, [아침] [낮] [저녁] [밤] [지금] 시간 바꾸기.
+- 주소 옵션: `/forest?spawn=start|clearing|cabin&time=13:00`.
+  - `clearing`: 빈터 갈림길 끝에서 화덕을 본다. `cabin`: 오두막 앞마당(앞벽에서 남쪽 +z 로 11m)에서 문을 본다.
+  - `time` 은 내 화면에만 적용된다(서버·다른 사람 화면은 실제 한국 시간). 바꾼 뒤에는 그 시각부터 평소처럼 흐른다.
+- 개발 모드 첫 로드는 컴파일 때문에 1분 넘게 걸릴 수 있다(로그인 뒤 "숲을 불러오는 중…" 이 길게 보임).
+
+- [ ] DEV 패널 버튼과 주소 옵션으로 시작·빈터·오두막에 바로 가고, 구역 이름이 산길·숲의 빈터·산길(앞마당)로 맞다. (FEAT-15)
+- [ ] 시간 버튼·`time` 옵션으로 낮·밤이 바뀌고, [지금] 으로 실제 시간에 돌아온다. (FEAT-15)
+- [ ] 배포용 빌드에서는 DEV 패널이 보이지 않는다. (FEAT-15)
 
 스크린숏과 콘솔 기록은 저장소의 `.screenshots/`(git에서 뺌)에 저장된다. (BUG-06)
 

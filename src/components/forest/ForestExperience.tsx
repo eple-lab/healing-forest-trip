@@ -25,6 +25,7 @@ import { NoticeBridge } from './NoticeBridge';
 import { HUD } from '@/components/ui/HUD';
 import { ChatPanel } from '@/components/ui/ChatPanel';
 import { HelpPanel } from '@/components/ui/HelpPanel';
+import { DevPanel } from '@/components/ui/DevPanel';
 import { NoticePanel } from '@/components/ui/NoticePanel';
 import { CharacterSelect } from '@/components/ui/CharacterSelect';
 import { MobileControls } from '@/components/ui/MobileControls';
@@ -158,6 +159,7 @@ export function ForestExperience({
       <HUD />
       <ChatPanel />
       <HelpPanel />
+      <DevPanel />
       <NoticePanel />
       <MobileControls />
       <Toast />

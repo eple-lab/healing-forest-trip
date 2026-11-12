@@ -26,6 +26,7 @@ import {
 import { useGame } from '@/store/game';
 import type { Seat } from '@/types/game';
 import { inputState, consumeLook } from '@/lib/input';
+import { consumeTeleport } from '@/lib/dev-tools';
 import { playerState } from '@/lib/player-state';
 import { audio } from '@/lib/audio';
 import { getSocket } from '@/lib/socket';
@@ -191,7 +192,22 @@ export function Player() {
     const delta = Math.min(0.05, rawDelta);
     const store = useGame.getState();
     const frozen = store.chatOpen || store.helpOpen || store.resting || store.noticeOpen;
-    const seat = store.seat;
+
+    // [FEAT-15] 개발 모드 순간이동(배포본에서는 consumeTeleport 가 늘 null)
+    const teleport = consumeTeleport();
+    if (teleport) {
+      if (store.seat) store.stand();
+      seatId.current = null;
+      lastSeat.current = null;
+      pos.current.x = teleport.x;
+      pos.current.z = teleport.z;
+      pos.current.y = groundAt(teleport.x, teleport.z, terrainHeight(teleport.x, teleport.z)).y;
+      velY.current = 0;
+      yaw.current = teleport.yaw;
+      pitch.current = 0;
+    }
+
+    const seat = teleport ? null : store.seat;
 
     /* 앉은 상태 */
     if (seat) {

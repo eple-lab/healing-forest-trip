@@ -1,6 +1,7 @@
 'use client';
 
 import { create } from 'zustand';
+import { devTimeShiftMs } from '@/lib/dev-tools';
 import type {
   ChatMessage,
   ConnectionState,
@@ -270,5 +271,6 @@ export const useClock = create<ClockState>((set) => ({
   // SSR 과 첫 클라이언트 렌더가 같은 값을 보도록 0 에서 시작한다.
   // 실제 시각은 마운트 직후/서버 welcome 수신 시 설정한다.
   now: 0,
-  setNow: (now) => set({ now }),
+  // [FEAT-15] 개발 모드에서 시간을 바꿨으면 그만큼 옮긴다(배포본에서는 늘 0)
+  setNow: (now) => set({ now: now + devTimeShiftMs() }),
 }));
