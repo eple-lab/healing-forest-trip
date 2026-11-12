@@ -360,7 +360,11 @@ export const CABIN = cabinToWorld(CABIN_LOCAL);
 
 // [FEAT-12] 오두막 둘레의 빈터(로컬 원). 숲 생성 뒤 이 안의 나무·덤불·바위·풀을 걸러 낸다.
 // 다음 이슈(모닥불·해먹)가 원을 더할 수 있게 배열로 둔다.
-export const CABIN_YARD_CLEAR_LOCAL = [{ x: -13, z: 1, r: 6 }];
+export const CABIN_YARD_CLEAR_LOCAL = [
+  { x: -13, z: 1, r: 6 },
+  // [FEAT-10] 오두막 동쪽(+x) 모닥불 자리. 숲 생성 때 이 반경 안의 나무를 치운다.
+  { x: 15, z: 2, r: 6 },
+];
 
 export const STAIRS_LOCAL = {
   x0: 3.34,
@@ -455,6 +459,27 @@ export const PICNIC = {
     x: CABIN.x + PICNIC_LOCAL.table.x + seat.side * 1.05,
     z: CABIN.z + PICNIC_LOCAL.table.z + seat.z,
   })),
+};
+
+// [FEAT-10] 오두막 동쪽(+x, 앞마당에서 볼 때 오른쪽) 모닥불·앉는 밑동·차 탁자(로컬 좌표).
+// 밑동 5개는 모닥불 중심에서 반지름 2.6m, 각도는 (cos, sin) = (x, z) 기준이다.
+export const CAMPFIRE_LOCAL = {
+  fire: { x: 15, z: 2, r: 0.9 },
+  seats: [0.6, 1.5, 2.4, 3.6, 5.2].map((angle, i) => ({
+    id: `seat-campfire-${i}`,
+    angle,
+    x: 15 + Math.cos(angle) * 2.6,
+    z: 2 + Math.sin(angle) * 2.6,
+  })),
+  // 차 탁자: 처음 지시(17.9, 3.6)는 0번 밑동과 겹치고 그 밑동에서 일어날 자리가 탁자 상자 안이었다(opencode 보고)
+  // → 밑동 사이 가장 넓은 틈(2.4~3.6rad, 오두막 쪽)의 가운데 3.0rad, 반지름 3.4m 로 옮긴다.
+  table: { x: 15 + Math.cos(3.0) * 3.4, z: 2 + Math.sin(3.0) * 3.4, r: 0.55, h: 0.55 },
+};
+
+export const CAMPFIRE = {
+  fire: cabinToWorld(CAMPFIRE_LOCAL.fire),
+  seats: CAMPFIRE_LOCAL.seats.map(cabinToWorld),
+  table: cabinToWorld(CAMPFIRE_LOCAL.table),
 };
 
 /**
@@ -692,6 +717,26 @@ export const BOX_COLLIDERS: BoxCollider[] = [
     y0: 0,
     y1: 0.8,
     tag: 'picnic-table',
+  },
+  // [FEAT-10] 오두막 동쪽 모닥불 돌 테두리(1.8×1.8, 높이 0.6)와 차 탁자 넓은 밑동.
+  // 앉는 밑동 5개는 앉기 대상이라 충돌 상자를 두지 않는다.
+  {
+    x0: CABIN.x + CAMPFIRE_LOCAL.fire.x - CAMPFIRE_LOCAL.fire.r,
+    x1: CABIN.x + CAMPFIRE_LOCAL.fire.x + CAMPFIRE_LOCAL.fire.r,
+    z0: CABIN.z + CAMPFIRE_LOCAL.fire.z - CAMPFIRE_LOCAL.fire.r,
+    z1: CABIN.z + CAMPFIRE_LOCAL.fire.z + CAMPFIRE_LOCAL.fire.r,
+    y0: 0,
+    y1: 0.6,
+    tag: 'campfire',
+  },
+  {
+    x0: CABIN.x + CAMPFIRE_LOCAL.table.x - CAMPFIRE_LOCAL.table.r,
+    x1: CABIN.x + CAMPFIRE_LOCAL.table.x + CAMPFIRE_LOCAL.table.r,
+    z0: CABIN.z + CAMPFIRE_LOCAL.table.z - CAMPFIRE_LOCAL.table.r,
+    z1: CABIN.z + CAMPFIRE_LOCAL.table.z + CAMPFIRE_LOCAL.table.r,
+    y0: 0,
+    y1: CAMPFIRE_LOCAL.table.h,
+    tag: 'campfire-table',
   },
 ];
 

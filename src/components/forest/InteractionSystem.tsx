@@ -13,6 +13,7 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import {
   CABIN,
+  CAMPFIRE,
   CLEARING,
   CLEARING_BENCHES,
   FURNITURE,
@@ -141,6 +142,26 @@ const picnicSeats: Seat[] = PICNIC.seats.map((seat) => {
   };
 });
 
+// [FEAT-10] 오두막 동쪽 모닥불 둘레 밑동 5개. 앉으면 모닥불을 바라본다.
+const campfireSeats: Seat[] = CAMPFIRE.seats.map((seat) => {
+  const ground = terrainHeight(seat.x, seat.z);
+  const yaw = yawToward(seat.x, seat.z, CAMPFIRE.fire.x, CAMPFIRE.fire.z);
+  const away = yaw + Math.PI;
+  return {
+    id: seat.id,
+    kind: 'stump',
+    label: '모닥불 곁에 앉기',
+    eyeY: ground + 0.46 + 1.16,
+    feetY: ground + 0.46,
+    x: seat.x,
+    z: seat.z,
+    yaw,
+    // 일어날 때 불 쪽이 아니라 밑동 바깥(모닥불 반대쪽) 0.9m 에 선다.
+    standX: seat.x + Math.sin(away) * -0.9,
+    standZ: seat.z + Math.cos(away) * -0.9,
+  };
+});
+
 export const SEATS: Seat[] = [
   ...stumpSeats,
   ...benchSeats,
@@ -149,6 +170,7 @@ export const SEATS: Seat[] = [
   windowSeat,
   bedSeat,
   ...picnicSeats,
+  ...campfireSeats,
 ];
 
 /* ── 상호작용 지점 ─────────────────────────── */
@@ -384,6 +406,20 @@ function buildTargets(): Target[] {
     x: CLEARING.x,
     z: CLEARING.z,
     radius: 2.6,
+    action: () => {
+      const state = useGame.getState();
+      state.flashWarmth();
+      state.showToast('따뜻한 기운이 손끝까지 번진다.', 'warm');
+    },
+  });
+
+  /* [FEAT-10] 오두막 동쪽 모닥불: 빈터 화덕과 같은 문구·온기 효과를 하나 더 둔다. */
+  targets.push({
+    id: 'campfire-warm',
+    label: '모닥불 곁에서 손을 녹이기',
+    x: CAMPFIRE.fire.x,
+    z: CAMPFIRE.fire.z,
+    radius: 2.2,
     action: () => {
       const state = useGame.getState();
       state.flashWarmth();

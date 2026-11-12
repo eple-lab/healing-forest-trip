@@ -14,6 +14,7 @@ import { NoticeBoard } from './NoticeBoard';
 import { Clearing } from './Clearing';
 import { Cabin } from './Cabin';
 import { Picnic } from './Picnic';
+import { Campfire } from './Campfire';
 import { Fireflies } from './Fireflies';
 import { Lighting } from './Lighting';
 import { Player } from './Player';
@@ -58,6 +59,7 @@ function Scene() {
       <Clearing />
       <Cabin />
       <Picnic />
+      <Campfire />
       <Fireflies />
       <Player />
       <RemotePlayers />
