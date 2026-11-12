@@ -73,7 +73,7 @@ function catmull(p0: number, p1: number, p2: number, p3: number, t: number) {
   );
 }
 
-export type TrailId = 'loop' | 'clearing' | 'cabin';
+export type TrailId = 'loop' | 'center-south' | 'center-north' | 'clearing' | 'cabin';
 export type PathSample = { x: number; z: number; h: number; t: number; trail: TrailId };
 
 function rawHeight(x: number, z: number) {
@@ -195,15 +195,57 @@ const CLEARING_SPUR = buildTrail(
   false,
 );
 
-/** 오두막 갈림길: 고리의 +x 쪽에서 갈라져 앞마당 쪽에서 문 정면(+z)으로 다가간다 */
+/**
+ * 가운데 길: 시작 지점에서 북쪽(-z)으로 빈터를 지나 오두막 앞마당까지 가는 산책길.
+ * 빈터 안에는 길을 내지 않고(화덕·벤치), 남쪽(+z) 입구와 북쪽(-z) 입구에서 끊는다.
+ * 구불거림은 예전 일자 길처럼 약 18m마다 좌우 최대 4m.
+ */
+const CENTER_ENTRY = 11; // 빈터 입구: 빈터 중심에서 남북으로 이만큼(벤치 바깥)
+
+/** a 에서 b 로 가는 직선을 같은 간격으로 나눠, offsets(진행 방향의 오른쪽 +) 만큼 옆으로 민 제어점 */
+function wigglyLine(a: Vec2, b: Vec2, offsets: number[]): Vec2[] {
+  const dx = b.x - a.x;
+  const dz = b.z - a.z;
+  const len = Math.hypot(dx, dz) || 1;
+  const rx = -dz / len;
+  const rz = dx / len;
+  const n = offsets.length - 1;
+  return offsets.map((o, i) => ({ x: a.x + (dx * i) / n + rx * o, z: a.z + (dz * i) / n + rz * o }));
+}
+
+// 처음 12m 는 북쪽(-z)으로 곧게 가서 알림판(x -1.9 까지)과 시작 표지판(x 1.85 부터) 사이 한가운데를 지난다
+const CENTER_FIRST: Vec2 = { x: worldFile.start.x, z: worldFile.start.z - 12 };
+const CENTER_SOUTH = buildTrail(
+  [
+    { x: worldFile.start.x, z: worldFile.start.z },
+    ...wigglyLine(
+      CENTER_FIRST,
+      { x: worldFile.clearing.x, z: worldFile.clearing.z + CENTER_ENTRY },
+      [0, -2, -3.2, 2.5, 0],
+    ),
+  ],
+  'center-south',
+  false,
+);
+
+const CENTER_NORTH = buildTrail(
+  [
+    ...wigglyLine(
+      { x: worldFile.clearing.x, z: worldFile.clearing.z - CENTER_ENTRY },
+      { x: worldFile.cabin.x, z: worldFile.cabin.z + 16 },
+      [0, 3, -2, 2.5, -1, 0],
+    ),
+    // 오두막 정면(남쪽 +z)으로 곧게 다가가 문 앞 9m 에서 끝난다
+    { x: worldFile.cabin.x, z: worldFile.cabin.z + 9 },
+  ],
+  'center-north',
+  false,
+);
+
+/** 오두막 갈림길: 고리의 +x 쪽에서 갈라져 앞마당(가운데 길 끝 쪽)에서 가운데 길과 만난다 */
 const cabinJunction = nearestIn(LOOP_SAMPLES, CABIN_JUNCTION.x, CABIN_JUNCTION.z).sample;
 const CABIN_SPUR = buildTrail(
-  spurControl(
-    cabinJunction,
-    { x: worldFile.cabin.x, z: worldFile.cabin.z + 9 },
-    1.8,
-    { x: worldFile.cabin.x + 4, z: worldFile.cabin.z + 16 },
-  ),
+  spurControl(cabinJunction, { x: worldFile.cabin.x + 1.5, z: worldFile.cabin.z + 15 }, 1.8),
   'cabin',
   false,
 );
@@ -211,6 +253,8 @@ const CABIN_SPUR = buildTrail(
 /** 길 묶음. 길마다 따로 그린다. */
 export const TRAILS: { id: TrailId; closed: boolean; samples: PathSample[] }[] = [
   { id: 'loop', closed: true, samples: LOOP_SAMPLES },
+  { id: 'center-south', closed: false, samples: CENTER_SOUTH },
+  { id: 'center-north', closed: false, samples: CENTER_NORTH },
   { id: 'clearing', closed: false, samples: CLEARING_SPUR },
   { id: 'cabin', closed: false, samples: CABIN_SPUR },
 ];
@@ -660,17 +704,6 @@ export const TUFTS = generateTufts();
 export type Stump = { id: string; x: number; z: number; h: number; facing: number };
 
 /**
- * 빈터 소품 배치를 돌리는 각도.
- * 예전 배치는 벤치 사이 가장 넓은 틈(3.6~5.8rad, 가운데 4.7rad)으로 길이 들어왔다.
- * 갈림길이 들어오는 방향(clearingDir)에 그 틈이 오도록 배치 전체를 돌린다.
- */
-const CLEARING_TURN = clearingDir - 4.7;
-const turnAroundClearing = (dx: number, dz: number): Vec2 => ({
-  x: CLEARING.x + dx * Math.cos(CLEARING_TURN) - dz * Math.sin(CLEARING_TURN),
-  z: CLEARING.z + dx * Math.sin(CLEARING_TURN) + dz * Math.cos(CLEARING_TURN),
-});
-
-/**
  * 앉을 수 있는 그루터기.
  * 길가 그루터기는 원형 길을 따라 간 비율(t)과 길에서 비켜난 거리(side, + 안쪽 / - 바깥쪽)로 놓는다.
  * 갈림길(빈터 t≈0.21, 오두막 t≈0.64) 근처는 피한다.
@@ -686,8 +719,8 @@ const TRAIL_STUMPS = [
 
 export const STUMPS: Stump[] = [
   ...TRAIL_STUMPS.map(({ id, t, side, h }) => ({ id, ...loopSpot(t, side), h, facing: 0 })),
-  // 빈터 그루터기: 예전 자리(빈터 중심에서 x +6.2, z -7)를 빈터 배치와 함께 돌린다
-  { id: 'stump-clearing', ...turnAroundClearing(6.2, -7), h: 0.5, facing: 0 },
+  // 빈터 그루터기: 빈터 중심에서 동쪽(+x) 6.2m, 북쪽(-z) 7m
+  { id: 'stump-clearing', x: CLEARING.x + 6.2, z: CLEARING.z - 7, h: 0.5, facing: 0 },
 ].map((s) => {
   const near = nearestPath(s.x, s.z);
   return {
@@ -788,7 +821,8 @@ function junctionSign(
 export const TRAIL_SIGNS: TrailSign[] = [
   {
     id: 'sign-start',
-    x: 2.8,
+    // 가운데 길 띠(반폭 최대 1.7m)에 판이 닿지 않도록 길 동쪽(+x)으로 조금 비켜 둔다
+    x: 3.3,
     z: 67,
     rotation: 0.08,
     lines: ['숲속여행', '산길 초입'],
@@ -819,10 +853,13 @@ export const TRAIL_SIGNS: TrailSign[] = [
   ),
 ];
 
-/** 빈터를 둘러싼 통나무 벤치 (길이 들어오는 방향은 비워 둔다) */
-export const CLEARING_BENCHES = [0.1, 1.0, 2.3, 3.6, 5.8].map((base) => {
+/**
+ * 빈터를 둘러싼 통나무 벤치 (길이 들어오는 방향은 비워 둔다).
+ * 각도는 (cos, sin) = (x, z) 기준. 1.0~2.3 틈 = 남쪽(+z) 가운데 길 입구, 3.6~5.8 틈 = 북쪽(-z) 입구,
+ * 2.3~3.6 틈 = 서쪽(-x) 갈림길 입구.
+ */
+export const CLEARING_BENCHES = [0.1, 1.0, 2.3, 3.6, 5.8].map((angle) => {
   const radius = 9.4;
-  const angle = base + CLEARING_TURN;
   return {
     x: CLEARING.x + Math.cos(angle) * radius,
     z: CLEARING.z + Math.sin(angle) * radius,
