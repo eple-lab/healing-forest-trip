@@ -198,7 +198,7 @@ export function HUD() {
         <span>·</span>
         <kbd>Shift</kbd> 달리기
         <span>·</span>
-        마우스 시점
+        마우스·<kbd>←</kbd><kbd>→</kbd> 시점
         <span>·</span>
         <kbd>E</kbd> 상호작용
         <span>·</span>

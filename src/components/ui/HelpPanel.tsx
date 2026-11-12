@@ -45,9 +45,11 @@ export function HelpPanel() {
           <section>
             <h3>조작법</h3>
             <ul className="key-list">
-              <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><span>걷기 (방향키도 가능)</span></li>
+              <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><span>걷기 (A·D 는 옆걸음, ↑↓ 로 앞뒤도 가능)</span></li>
               <li><kbd>Shift</kbd><span>조금 빠르게 걷기</span></li>
               <li><kbd>마우스</kbd><span>화면을 클릭하면 시점 고정 · 위아래 둘러보기</span></li>
+              <li><kbd>←</kbd><kbd>→</kbd><span>제자리에서 돌기 (앉아서도 가능)</span></li>
+              <li><kbd>PgUp</kbd><kbd>PgDn</kbd><span>위 · 아래 보기</span></li>
               <li><kbd>E</kbd><span>앉기 · 줍기 · 열기 · 불 피우기</span></li>
               <li><kbd>Enter</kbd><span>빈터에서 대화 열기</span></li>
               <li><kbd>M</kbd><span>소리 켜고 끄기</span></li>

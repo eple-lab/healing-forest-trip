@@ -42,16 +42,12 @@ const PHYSICS_STEP = 1 / 60;
 const MAX_FRAME = 0.25;
 const PITCH_LIMIT = 1.32;
 
-const MOVE_KEYS = new Set([
-  'KeyW',
-  'KeyA',
-  'KeyS',
-  'KeyD',
-  'ArrowUp',
-  'ArrowDown',
-  'ArrowLeft',
-  'ArrowRight',
-]);
+const MOVE_KEYS = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown']);
+
+// [FEAT-14] 키보드 시점: ←→ 제자리 돌기, PageUp/PageDown 위아래 보기(앉아 있어도 일어나지 않는다)
+const LOOK_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown']);
+const KEY_TURN_SPEED = 1.9; // rad/s (약 110°/초)
+const KEY_PITCH_SPEED = 1.1; // rad/s
 
 function isTypingTarget(target: EventTarget | null) {
   if (!(target instanceof HTMLElement)) return false;
@@ -94,7 +90,9 @@ export function Player() {
     const onKeyDown = (event: KeyboardEvent) => {
       const state = useGame.getState();
       if (state.chatOpen || state.helpOpen || isTypingTarget(event.target)) return;
-      if (MOVE_KEYS.has(event.code) || event.code === 'Space') event.preventDefault();
+      if (MOVE_KEYS.has(event.code) || LOOK_KEYS.has(event.code) || event.code === 'Space') {
+        event.preventDefault();
+      }
       keys.current.add(event.code);
       if (event.code === 'ShiftLeft' || event.code === 'ShiftRight') {
         inputState.sprint = true;
@@ -187,6 +185,18 @@ export function Player() {
     if (!blocked(pos.current.x, nextZ, feetY)) pos.current.z = nextZ;
   };
 
+  /**
+   * [FEAT-14] ←(왼쪽으로 돌기)·→(오른쪽)·PageUp(위)·PageDown(아래) 를 누르는 동안 시점을 돌린다.
+   * dt 는 실제 흐른 시간(최대 MAX_FRAME)이라 느린 화면에서도 초당 도는 각도가 같다(FEAT-05 와 같은 이유).
+   */
+  const keyLook = (dt: number) => {
+    const k = keys.current;
+    const turn = (k.has('ArrowLeft') ? 1 : 0) - (k.has('ArrowRight') ? 1 : 0);
+    const tilt = (k.has('PageUp') ? 1 : 0) - (k.has('PageDown') ? 1 : 0);
+    if (turn) yaw.current += turn * KEY_TURN_SPEED * dt;
+    if (tilt) pitch.current = clamp(pitch.current + tilt * KEY_PITCH_SPEED * dt, -PITCH_LIMIT, PITCH_LIMIT);
+  };
+
   useFrame((state, rawDelta) => {
     // 카메라 흔들림·숨쉬기·시야각 같은 화면 효과용(이전과 같다). 이동과 중력은 아래에서 나눠 계산한다.
     const delta = Math.min(0.05, rawDelta);
@@ -235,6 +245,7 @@ export function Player() {
         yaw.current -= look.x * 0.0032;
         pitch.current = clamp(pitch.current - look.y * 0.0032, -PITCH_LIMIT, PITCH_LIMIT);
       }
+      if (!frozen) keyLook(Math.min(MAX_FRAME, rawDelta));
 
       breathe.current += delta * 1.1;
       const breathY = Math.sin(breathe.current) * 0.006;
@@ -295,6 +306,7 @@ export function Player() {
       yaw.current -= look.x * 0.0032;
       pitch.current = clamp(pitch.current - look.y * 0.0032, -PITCH_LIMIT, PITCH_LIMIT);
     }
+    if (!frozen) keyLook(Math.min(MAX_FRAME, rawDelta));
 
     /* 이동 입력 */
     let forward = 0;
@@ -302,8 +314,9 @@ export function Player() {
     if (!frozen) {
       if (keys.current.has('KeyW') || keys.current.has('ArrowUp')) forward += 1;
       if (keys.current.has('KeyS') || keys.current.has('ArrowDown')) forward -= 1;
-      if (keys.current.has('KeyD') || keys.current.has('ArrowRight')) strafe += 1;
-      if (keys.current.has('KeyA') || keys.current.has('ArrowLeft')) strafe -= 1;
+      // [FEAT-14] ←→ 는 시점 돌리기로 옮겼다. 옆걸음은 A·D
+      if (keys.current.has('KeyD')) strafe += 1;
+      if (keys.current.has('KeyA')) strafe -= 1;
       forward += inputState.touchMoveY;
       strafe += inputState.touchMoveX;
     }
