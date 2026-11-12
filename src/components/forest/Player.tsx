@@ -34,7 +34,8 @@ import { getSocket } from '@/lib/socket';
 const EYE = 1.62;
 const RADIUS = 0.3;
 const GRAVITY = 22;
-const WALK_SPEED = 4;
+// [FEAT-17] 걷기는 처음 값(2.35)으로 되돌린다. 느긋한 산책이 이 앱에 맞다(2026-11-12 eple 확인). 달리기는 그대로.
+const WALK_SPEED = 2.35;
 const RUN_SPEED = 12;
 const STEP_UP = 0.62;
 // [FEAT-05] 이동·중력 계산 조각 크기와 한 프레임에서 따라잡을 최대 시간(4fps까지 실제 속도 유지)

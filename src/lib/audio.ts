@@ -20,6 +20,9 @@ type Environment = {
 };
 
 /** 벽난로 소리 위치 (오두막 기준: 왼쪽(-x) 벽 안쪽, 벽난로 중심 z) */
+/** [FEAT-17] 발소리 전체 크기 배율 (2026-11-12 이전 대비 30%) */
+const FOOTSTEP_LEVEL = 0.3;
+
 const FIRE = { x: CABIN.x - 4.9, z: CABIN.z - 0.4 };
 
 class ForestAudio {
@@ -246,7 +249,10 @@ class ForestAudio {
     const gain = ctx.createGain();
     // [FEAT-01] 바닥별 크기는 그대로 두고, 달릴 때 커지는 배율만 1.35 → 1.2로 줄인다.
     const volume =
-      (surface === 'grass' ? 0.05 : surface === 'dirt' ? 0.11 : 0.09) * (running ? 1.2 : 1);
+      (surface === 'grass' ? 0.05 : surface === 'dirt' ? 0.11 : 0.09) *
+      (running ? 1.2 : 1) *
+      // [FEAT-17] 발소리가 거슬리게 커서 전체를 30% 로 줄인다(바닥별 비율은 그대로).
+      FOOTSTEP_LEVEL;
     // [FEAT-01] 바로 시작하던 소리를 10ms 동안 올리고 약 0.22초에 걸쳐 부드럽게 사라지게 한다.
     gain.gain.setValueAtTime(0.0001, t);
     gain.gain.exponentialRampToValueAtTime(volume, t + 0.01);
