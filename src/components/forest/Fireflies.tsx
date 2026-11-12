@@ -5,7 +5,7 @@
 import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { CLEARING, PATH_SAMPLES, mulberry32, terrainHeight } from '@/lib/world';
+import { CABIN, CLEARING, PATH_SAMPLES, mulberry32, terrainHeight } from '@/lib/world';
 import { glowTexture } from '@/lib/textures';
 import { useClock } from '@/store/game';
 import { currentKoreaClock, sunState } from '@/lib/time';
@@ -51,6 +51,29 @@ export function Fireflies() {
         x,
         z,
         baseY: terrainHeight(x, z) + 0.5 + rnd() * 2.4,
+        phase: rnd() * Math.PI * 2,
+        speed: 0.3 + rnd() * 0.9,
+        radius: 0.25 + rnd() * 0.7,
+        size: 0.4 + rnd() * 0.8,
+      });
+    }
+    // [FEAT-13] 오두막 둘레(반지름 6~25m)에 반딧불이 60마리를 더한다.
+    // 난수는 기존 두 묶음 뒤에 이어 쓰므로 빈터·산길 반딧불이 자리는 그대로다.
+    for (let i = 0; i < 60; i++) {
+      let x = CABIN.x;
+      let z = CABIN.z;
+      // [FEAT-13] 오두막 상자 안(로컬 |x|, |z| < 5.5)에 뽑히면 다시 뽑는다.
+      for (let attempt = 0; attempt < 16; attempt++) {
+        const angle = rnd() * Math.PI * 2;
+        const radius = 6 + rnd() * 19;
+        x = CABIN.x + Math.cos(angle) * radius;
+        z = CABIN.z + Math.sin(angle) * radius;
+        if (Math.abs(x - CABIN.x) >= 5.5 || Math.abs(z - CABIN.z) >= 5.5) break;
+      }
+      flies.push({
+        x,
+        z,
+        baseY: terrainHeight(x, z) + 0.4 + rnd() * 2.2,
         phase: rnd() * Math.PI * 2,
         speed: 0.3 + rnd() * 0.9,
         radius: 0.25 + rnd() * 0.7,
