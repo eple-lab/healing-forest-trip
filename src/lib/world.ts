@@ -364,6 +364,8 @@ export const CABIN_YARD_CLEAR_LOCAL = [
   { x: -13, z: 1, r: 6 },
   // [FEAT-10] 오두막 동쪽(+x) 모닥불 자리. 숲 생성 때 이 반경 안의 나무를 치운다.
   { x: 15, z: 2, r: 6 },
+  // [FEAT-11] 모닥불 북쪽 해먹 자리. 숲 생성 때 이 반경 안의 나무를 치운다.
+  { x: 16.5, z: -5, r: 5 },
 ];
 
 export const STAIRS_LOCAL = {
@@ -480,6 +482,42 @@ export const CAMPFIRE = {
   fire: cabinToWorld(CAMPFIRE_LOCAL.fire),
   seats: CAMPFIRE_LOCAL.seats.map(cabinToWorld),
   table: cabinToWorld(CAMPFIRE_LOCAL.table),
+};
+
+// [FEAT-11] 모닥불 북쪽(-z) 해먹과 줄조명(가랜드). 로컬 좌표(원점 = 오두막 중심).
+export const HAMMOCK_LOCAL = {
+  center: { x: 17, z: -7 },
+  // 양 끝 기둥 2개: 동서(x) 방향으로 3.2m, 높이 1.8, 굵기 0.12
+  posts: [
+    { x: 15.4, z: -7, h: 1.8 },
+    { x: 18.6, z: -7, h: 1.8 },
+  ],
+  // 해먹 서쪽 기둥 꼭대기 → 모닥불 북서쪽 새 기둥
+  garlandPost: { x: 12.6, z: -1.2, h: 2.2 },
+  cloth: { width: 0.9, sag: 0.35, lowestY: 0.55 },
+  strings: [
+    // 해먹 두 기둥 꼭대기 사이
+    { x0: 15.4, y0: 1.8, z0: -7, x1: 18.6, y1: 1.8, z1: -7, sag: 0.3, count: 10 },
+    // 해먹 서쪽 기둥 꼭대기 → 모닥불 북서쪽 새 기둥
+    { x0: 15.4, y0: 1.8, z0: -7, x1: 12.6, y1: 2.2, z1: -1.2, sag: 0.5, count: 14 },
+  ],
+};
+
+export const HAMMOCK = {
+  center: cabinToWorld(HAMMOCK_LOCAL.center),
+  posts: HAMMOCK_LOCAL.posts.map(cabinToWorld),
+  garlandPost: cabinToWorld(HAMMOCK_LOCAL.garlandPost),
+  cloth: HAMMOCK_LOCAL.cloth,
+  strings: HAMMOCK_LOCAL.strings.map((s) => ({
+    x0: CABIN.x + s.x0,
+    y0: s.y0,
+    z0: CABIN.z + s.z0,
+    x1: CABIN.x + s.x1,
+    y1: s.y1,
+    z1: CABIN.z + s.z1,
+    sag: s.sag,
+    count: s.count,
+  })),
 };
 
 /**
@@ -699,6 +737,25 @@ const CABIN_COLLIDERS_LOCAL: BoxCollider[] = [
     y1: CABIN_LOCAL.floor1 + 1.5,
     tag: 'lamp',
   })),
+  // [FEAT-11] 해먹 기둥 3개. 0.24×0.24, 높이 기둥 높이. 천은 상자 없음.
+  ...HAMMOCK_LOCAL.posts.map((post) => ({
+    x0: post.x - 0.12,
+    x1: post.x + 0.12,
+    z0: post.z - 0.12,
+    z1: post.z + 0.12,
+    y0: 0,
+    y1: post.h,
+    tag: 'hammock-post',
+  })),
+  {
+    x0: HAMMOCK_LOCAL.garlandPost.x - 0.12,
+    x1: HAMMOCK_LOCAL.garlandPost.x + 0.12,
+    z0: HAMMOCK_LOCAL.garlandPost.z - 0.12,
+    z1: HAMMOCK_LOCAL.garlandPost.z + 0.12,
+    y0: 0,
+    y1: HAMMOCK_LOCAL.garlandPost.h,
+    tag: 'hammock-post',
+  },
   // 2층 난간
   { x0: 3.2, x1: 3.32, z0: 0.55, z1: 5.25, y0: 3.42, y1: 4.45, tag: 'rail' },
 ];

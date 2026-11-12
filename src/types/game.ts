@@ -25,6 +25,8 @@ export type Seat = {
   yaw: number;
   standX: number;
   standZ: number;
+  // [FEAT-11] 누웠을 때 카메라 pitch를 좌석별로 정한다. 없으면 기존 값(침대 0.18, 그 외 -0.06).
+  pitch?: number;
 };
 
 export type PublicPlayer = {

@@ -227,7 +227,8 @@ export function Player() {
       if (seatId.current !== seat.id) {
         seatId.current = seat.id;
         yaw.current = seat.yaw;
-        pitch.current = seat.kind === 'bed' ? 0.18 : -0.06;
+        // [FEAT-11] 해먹처럼 하늘을 봐야 하는 누움 좌석은 pitch를 직접 지정한다.
+        pitch.current = seat.pitch ?? (seat.kind === 'bed' ? 0.18 : -0.06);
         pos.current.x = seat.x;
         pos.current.z = seat.z;
         pos.current.y = seat.feetY;

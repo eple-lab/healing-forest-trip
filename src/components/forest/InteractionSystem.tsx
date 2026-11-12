@@ -17,6 +17,7 @@ import {
   CLEARING,
   CLEARING_BENCHES,
   FURNITURE,
+  HAMMOCK,
   PICNIC,
   STUMPS,
   TRAIL_SIGNS,
@@ -162,6 +163,22 @@ const campfireSeats: Seat[] = CAMPFIRE.seats.map((seat) => {
   };
 });
 
+// [FEAT-11] 모닥불 북쪽 해먹. 눕으면 북쪽(-z)을 보고 위(하늘)를 본다.
+const hammockGround = terrainHeight(HAMMOCK.center.x, HAMMOCK.center.z);
+const hammockSeat: Seat = {
+  id: 'seat-hammock',
+  kind: 'bed',
+  label: '해먹에 눕기',
+  eyeY: hammockGround + 0.55 + 0.3,
+  feetY: hammockGround + 0.55,
+  x: HAMMOCK.center.x,
+  z: HAMMOCK.center.z,
+  yaw: 0,
+  standX: HAMMOCK.center.x,
+  standZ: HAMMOCK.center.z + 1.0,
+  pitch: 1.0,
+};
+
 export const SEATS: Seat[] = [
   ...stumpSeats,
   ...benchSeats,
@@ -171,6 +188,7 @@ export const SEATS: Seat[] = [
   bedSeat,
   ...picnicSeats,
   ...campfireSeats,
+  hammockSeat,
 ];
 
 /* ── 상호작용 지점 ─────────────────────────── */

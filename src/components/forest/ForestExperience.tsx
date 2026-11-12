@@ -15,6 +15,8 @@ import { Clearing } from './Clearing';
 import { Cabin } from './Cabin';
 import { Picnic } from './Picnic';
 import { Campfire } from './Campfire';
+// [FEAT-11] 모닥불 북쪽 해먹과 줄조명
+import { Hammock } from './Hammock';
 import { Fireflies } from './Fireflies';
 import { Lighting } from './Lighting';
 import { Player } from './Player';
@@ -60,6 +62,7 @@ function Scene() {
       <Cabin />
       <Picnic />
       <Campfire />
+      <Hammock />
       <Fireflies />
       <Player />
       <RemotePlayers />
