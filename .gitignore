@@ -17,3 +17,6 @@ chat_backup*.json
 
 # Claude가 opencode에 넘기는 이슈 초안 (공개하지 않음)
 .issues/
+
+# eple 화면 확인 녹화(날짜별 폴더, 저장소에 올리지 않음)
+docs/test-*/
