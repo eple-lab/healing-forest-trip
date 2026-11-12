@@ -26,6 +26,7 @@ import { HUD } from '@/components/ui/HUD';
 import { ChatPanel } from '@/components/ui/ChatPanel';
 import { HelpPanel } from '@/components/ui/HelpPanel';
 import { DevPanel } from '@/components/ui/DevPanel';
+import { MiniMap } from '@/components/ui/MiniMap';
 import { NoticePanel } from '@/components/ui/NoticePanel';
 import { CharacterSelect } from '@/components/ui/CharacterSelect';
 import { MobileControls } from '@/components/ui/MobileControls';
@@ -160,6 +161,8 @@ export function ForestExperience({
       <ChatPanel />
       <HelpPanel />
       <DevPanel />
+      {/* [FEAT-07] 오른쪽 위 고정 2D 지도 */}
+      <MiniMap />
       <NoticePanel />
       <MobileControls />
       <Toast />

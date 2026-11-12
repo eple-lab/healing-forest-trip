@@ -53,6 +53,7 @@ export function HelpPanel() {
               <li><kbd>E</kbd><span>앉기 · 줍기 · 열기 · 불 피우기</span></li>
               <li><kbd>Enter</kbd><span>빈터에서 대화 열기</span></li>
               <li><kbd>M</kbd><span>소리 켜고 끄기</span></li>
+              <li><kbd>N</kbd><span>지도 열고 닫기</span></li>
               <li><kbd>H</kbd><span>이 안내 열고 닫기</span></li>
               <li><kbd>Esc</kbd><span>대화/안내 닫기 · 시점 고정 해제</span></li>
             </ul>

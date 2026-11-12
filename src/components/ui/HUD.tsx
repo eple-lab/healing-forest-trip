@@ -224,6 +224,8 @@ export function HUD() {
         <span>·</span>
         <kbd>Enter</kbd> 대화
         <span>·</span>
+        <kbd>N</kbd> 지도
+        <span>·</span>
         <kbd>H</kbd> 도움말
       </div>
     </div>

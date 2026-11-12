@@ -939,14 +939,82 @@ img {
 .dev-panel button[aria-pressed='true'] {
   background: rgba(242, 181, 107, 0.22);
 }
+
+/* [FEAT-07] 오른쪽 위 고정 2D 지도 */
+.minimap {
+  position: absolute;
+  top: calc(max(16px, env(safe-area-inset-top)) + 100px);
+  right: 16px;
+  z-index: 31;
+  display: flex;
+  justify-content: flex-end;
+  width: 140px;
+  pointer-events: none;
+}
+.minimap-map {
+  position: relative;
+  width: 100%;
+  border-radius: 14px;
+  overflow: hidden;
+  pointer-events: auto;
+}
+.minimap-drawing {
+  position: absolute;
+  inset: 0;
+}
+.minimap-canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.minimap-close {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: rgba(18, 27, 21, 0.72);
+  color: var(--ink-soft);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+.minimap-close:hover {
+  background: rgba(224, 238, 214, 0.12);
+  color: #fff;
+}
+.minimap-open {
+  background: var(--glass);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(16px) saturate(1.05);
+  -webkit-backdrop-filter: blur(16px) saturate(1.05);
+  pointer-events: auto;
+}
+
 /* 좁은 화면에서는 조이스틱·E 버튼을 가리지 않게 위쪽(상태 줄 아래)에 둔다 */
 @media (max-width: 720px) {
   .dev-panel {
     top: calc(max(10px, env(safe-area-inset-top)) + 84px);
     bottom: auto;
     left: 10px;
-    right: 10px;
+    /* [FEAT-07] 오른쪽 위 지도(90px + 여백) 왼쪽에서 끝나게 한다. */
+    right: 112px;
     font-size: 10px;
+  }
+  /* [FEAT-07] 휴대폰에서는 지도 폭을 90px 로 줄인다. */
+  .minimap {
+    top: calc(max(10px, env(safe-area-inset-top)) + 84px);
+    right: 10px;
+    width: 90px;
   }
 }
 
