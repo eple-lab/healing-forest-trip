@@ -276,6 +276,23 @@ export function nearestPath(x: number, z: number) {
  * 고리 위 한 점에서 옆으로 비켜난 자리.
  * t: 고리를 따라 간 비율(0 = 시작 지점, -x 쪽으로 돈다), side: 고리 안쪽(+)·바깥쪽(-)으로 비켜날 거리(m)
  */
+/**
+ * [FEAT-18] 아무 길(TRAILS) 위 한 점에서 옆으로 비켜난 자리.
+ * t: 그 길을 따라 간 비율(0 = 길 처음), side: 진행 방향의 왼쪽(+)·오른쪽(-)으로 비켜날 거리(m)
+ */
+export function trailSpot(id: TrailId, t: number, side: number): Vec2 {
+  const samples = TRAILS.find((trail) => trail.id === id)!.samples;
+  const n = samples.length - 1;
+  const i = clamp(Math.round(clamp(t, 0, 1) * n), 0, n - 1);
+  const s0 = samples[i];
+  const s1 = samples[i + 1];
+  const len = Math.hypot(s1.x - s0.x, s1.z - s0.z) || 1;
+  // 진행 방향 (tx, tz) 의 왼쪽 = (tz, -tx)
+  const lx = (s1.z - s0.z) / len;
+  const lz = -(s1.x - s0.x) / len;
+  return { x: s0.x + lx * side, z: s0.z + lz * side };
+}
+
 export function loopSpot(t: number, side: number): Vec2 {
   const n = LOOP_SAMPLES.length - 1;
   const f = loopFrame(clamp(Math.round((((t % 1) + 1) % 1) * n), 0, n - 1));
@@ -378,6 +395,9 @@ export const STAIRS_LOCAL = {
   steps: 11,
 };
 export const STAIRS = cabinToWorld(STAIRS_LOCAL);
+
+/** [BUG-13] 계단 아래에서 난간을 비워 두는 길이(계단 길이 대비 비율). 서쪽에서 첫 계단으로 오르는 입구 */
+export const STAIR_RAIL_OPEN = 0.25;
 
 export const STAIR_HOLE_LOCAL = {
   x0: 3.28,
@@ -526,7 +546,10 @@ export const HAMMOCK = {
  *  - floorLamps: 바닥 스탠드 2개. 발광 재질·번짐만 쓰고, 작은 충돌 상자는 CABIN_COLLIDERS_LOCAL 에 둔다.
  *  - strings: 알전구 줄 3개. 양 끝 좌표(x0,z0 → x1,z1)와 높이·가운데 처짐(sag)·전구 개수.
  */
-export const CABIN_LIGHTS_LOCAL = {
+/** 알전구 줄 하나. yEnd 가 있으면 x0,z0 쪽 높이 y 에서 x1,z1 쪽 높이 yEnd 로 기울어진다(계단 줄) */
+export type CabinStringLight = { x0: number; z0: number; x1: number; z1: number; y: number; yEnd?: number; sag: number; count: number };
+
+export const CABIN_LIGHTS_LOCAL: { pendants: { x: number; y: number; z: number }[]; floorLamps: { x: number; z: number }[]; strings: CabinStringLight[] } = {
   pendants: [
     { x: 0, y: CABIN_LOCAL.floor2 - 0.15, z: 1 },
     { x: -1, y: CABIN_LOCAL.wallTop - 0.7, z: -1.5 },
@@ -562,6 +585,17 @@ export const CABIN_LIGHTS_LOCAL = {
       y: 3.0,
       sag: 0.2,
       count: 12,
+    },
+    // [FEAT-18] 계단 처음부터 끝까지: 동쪽 벽 안쪽(x 4.7) 계단 위로 비스듬히. 아래(z 4.85)는 1층 바닥+2.0, 위(z 0.3)는 2층 바닥+1.9
+    {
+      x0: 4.7,
+      z0: STAIRS_LOCAL.zBottom,
+      x1: 4.7,
+      z1: STAIRS_LOCAL.zTop,
+      y: CABIN_LOCAL.floor1 + 2.0,
+      yEnd: CABIN_LOCAL.floor2 + 1.9,
+      sag: 0.15,
+      count: 14,
     },
   ],
 };
@@ -705,7 +739,9 @@ const CABIN_COLLIDERS_LOCAL: BoxCollider[] = [
   { x0: WINDOW_LOCAL.halfW, x1: 5.1, z0: 4.92, z1: 5.08, y0: 3.42, y1: 6.6, tag: 'wall' },
   { x0: -WINDOW_LOCAL.halfW, x1: WINDOW_LOCAL.halfW, z0: 4.92, z1: 5.08, y0: 3.42, y1: WINDOW_LOCAL.bottom, tag: 'wall' },
   // 계단 난간
-  { x0: 3.22, x1: 3.36, z0: 0.1, z1: 5.0, y0: 0.32, y1: 4.4, tag: 'rail' },
+  // [BUG-13] 계단 아래쪽은 앞벽(z 4.92) 바로 안이라 앞에서는 못 들어오고, 난간이 끝까지(z 5.0) 막아 서쪽에서도 못 올랐다
+  // → 계단 아래 STAIR_RAIL_OPEN(길이 비율)만큼 난간을 비워 서쪽에서 첫 계단에 오르게 한다.
+  { x0: 3.22, x1: 3.36, z0: 0.1, z1: STAIRS_LOCAL.zBottom - (STAIRS_LOCAL.zBottom - STAIRS_LOCAL.zTop) * STAIR_RAIL_OPEN, y0: 0.32, y1: 4.4, tag: 'rail' },
   // 가구
   // [BUG-07] 벽난로·흔들의자를 옮긴 만큼 충돌 상자도 옮긴다(벽난로는 바닥 받침·선반 앞까지).
   { x0: -4.92, x1: -3.65, z0: -1.9, z1: 1.1, y0: 0.32, y1: 2.2, tag: 'fireplace' },
@@ -984,10 +1020,25 @@ const TRAIL_STUMPS = [
   { id: 'stump-trail-4', t: 0.45, side: -3, h: 0.44 },
   { id: 'stump-trail-5', t: 0.78, side: 3, h: 0.52 },
   { id: 'stump-trail-6', t: 0.9, side: -3, h: 0.47 },
+  // [FEAT-18] 원형 길에 띄엄띄엄 더 (갈림길 t≈0.21·0.64 근처는 피함)
+  { id: 'stump-trail-7', t: 0.26, side: 3, h: 0.5 },
+  { id: 'stump-trail-8', t: 0.55, side: -3, h: 0.48 },
+  { id: 'stump-trail-9', t: 0.71, side: 3, h: 0.45 },
+  { id: 'stump-trail-10', t: 0.97, side: -3, h: 0.5 },
+];
+
+/** [FEAT-18] 가운데 길 옆 그루터기: 길(center-south·center-north)을 따라 간 비율과 왼쪽(+)/오른쪽(-) 거리 */
+const CENTER_STUMPS: { id: string; trail: TrailId; t: number; side: number; h: number }[] = [
+  { id: 'stump-center-1', trail: 'center-south', t: 0.32, side: 2.8, h: 0.47 },
+  { id: 'stump-center-2', trail: 'center-south', t: 0.7, side: -2.8, h: 0.52 },
+  { id: 'stump-center-3', trail: 'center-north', t: 0.25, side: 2.8, h: 0.5 },
+  { id: 'stump-center-4', trail: 'center-north', t: 0.5, side: -2.8, h: 0.45 },
+  { id: 'stump-center-5', trail: 'center-north', t: 0.76, side: 2.8, h: 0.49 },
 ];
 
 export const STUMPS: Stump[] = [
   ...TRAIL_STUMPS.map(({ id, t, side, h }) => ({ id, ...loopSpot(t, side), h, facing: 0 })),
+  ...CENTER_STUMPS.map(({ id, trail, t, side, h }) => ({ id, ...trailSpot(trail, t, side), h, facing: 0 })),
   // 빈터 그루터기: 빈터 중심에서 동쪽(+x) 6.2m, 북쪽(-z) 7m
   { id: 'stump-clearing', x: CLEARING.x + 6.2, z: CLEARING.z - 7, h: 0.5, facing: 0 },
 ].map((s) => {

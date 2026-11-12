@@ -100,7 +100,8 @@ function drawStart(ctx: CanvasRenderingContext2D, width: number) {
 function drawPlaceNames(ctx: CanvasRenderingContext2D, width: number) {
   const clampX = (x: number, pad: number) => Math.min(width - pad, Math.max(pad, x));
   ctx.save();
-  ctx.font = '600 8px "Malgun Gothic", "Apple SD Gothic Neo", system-ui, sans-serif';
+  // [FEAT-18] 지도 글씨를 두 배로(8px → 16px)
+  ctx.font = '600 16px "Malgun Gothic", "Apple SD Gothic Neo", system-ui, sans-serif';
   ctx.textAlign = 'center';
   ctx.fillStyle = 'rgba(242, 246, 235, 0.92)';
   ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
@@ -108,16 +109,16 @@ function drawPlaceNames(ctx: CanvasRenderingContext2D, width: number) {
 
   const start = worldToMap(START.x, START.z, width);
   ctx.textBaseline = 'bottom';
-  ctx.fillText('산길 초입', clampX(start.px, 24), start.py - 6);
+  ctx.fillText('산길 초입', clampX(start.px, 38), start.py - 8);
 
   const clearing = worldToMap(CLEARING.x, CLEARING.z, width);
   ctx.textBaseline = 'middle';
-  ctx.fillText('숲의 빈터', clampX(clearing.px, 24), clearing.py);
+  ctx.fillText('숲의 빈터', clampX(clearing.px, 38), clearing.py);
 
   const cabin = worldToMap(CABIN.x, CABIN.z, width);
   const cabinBottom = cabin.py + CABIN.halfD * mapScale(width);
   ctx.textBaseline = 'top';
-  ctx.fillText('오두막', clampX(cabin.px, 18), cabinBottom + 3);
+  ctx.fillText('오두막', clampX(cabin.px, 26), cabinBottom + 3);
   ctx.restore();
 }
 
@@ -149,6 +150,9 @@ function drawPlayerArrow(ctx: CanvasRenderingContext2D, width: number) {
   ctx.save();
   ctx.translate(px, py);
   ctx.rotate(headingAngle(playerState.yaw));
+  // [FEAT-18] 내 표시를 오두막 그림의 약 두 배 크기로(데스크톱 화살표 길이 약 19px)
+  const arrowScale = 1.8 * (width / 140);
+  ctx.scale(arrowScale, arrowScale);
   ctx.beginPath();
   ctx.moveTo(0, -6);
   ctx.lineTo(4, 4.6);
@@ -157,7 +161,7 @@ function drawPlayerArrow(ctx: CanvasRenderingContext2D, width: number) {
   ctx.closePath();
   ctx.fillStyle = '#f6e7b8';
   ctx.strokeStyle = 'rgba(24, 32, 22, 0.92)';
-  ctx.lineWidth = 1.2;
+  ctx.lineWidth = 1.2 / arrowScale;
   ctx.fill();
   ctx.stroke();
   ctx.restore();

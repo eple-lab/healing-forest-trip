@@ -35,7 +35,8 @@ const EYE = 1.62;
 const RADIUS = 0.3;
 const GRAVITY = 22;
 // [FEAT-17] 걷기는 처음 값(2.35)으로 되돌린다. 느긋한 산책이 이 앱에 맞다(2026-11-12 eple 확인). 달리기는 그대로.
-const WALK_SPEED = 2.35;
+// [FEAT-18] 2026-11-12 eple: 2.35 도 빨라 절반으로. 사람이 천천히 산책하는 속도(약 1.2~1.4 m/초) 쪽.
+const WALK_SPEED = 1.2;
 const RUN_SPEED = 12;
 const STEP_UP = 0.62;
 // [FEAT-05] 이동·중력 계산 조각 크기와 한 프레임에서 따라잡을 최대 시간(4fps까지 실제 속도 유지)
@@ -47,8 +48,11 @@ const MOVE_KEYS = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown
 
 // [FEAT-14] 키보드 시점: ←→ 제자리 돌기, PageUp/PageDown 위아래 보기(앉아 있어도 일어나지 않는다)
 const LOOK_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown']);
-const KEY_TURN_SPEED = 1.9; // rad/s (약 110°/초)
-const KEY_PITCH_SPEED = 1.1; // rad/s
+// [FEAT-18] 방향 전환이 휙휙 돌아 줄인다: 키 돌기 1.9 → 1.0 rad/s(약 57°/초), 위아래 1.1 → 0.7
+const KEY_TURN_SPEED = 1.0; // rad/s
+const KEY_PITCH_SPEED = 0.7; // rad/s
+/** [FEAT-18] 터치 끌기 시점 감도(픽셀당 rad). 0.0032 → 0.0022 */
+const TOUCH_LOOK = 0.0022;
 
 function isTypingTarget(target: EventTarget | null) {
   if (!(target instanceof HTMLElement)) return false;
@@ -75,7 +79,8 @@ export function Player() {
   const seatId = useRef<string | null>(null);
   // [BUG-01] 일어날 때 마지막으로 앉았던 Seat의 standX/standZ로 옮기기 위해 저장해 둔다
   const lastSeat = useRef<Seat | null>(null);
-  const lookSensitivity = useRef(0.0022);
+  // [FEAT-18] 마우스 시점 감도 0.0022 → 0.0015 (휙휙 도는 느낌 줄이기)
+  const lookSensitivity = useRef(0.0015);
   const breathe = useRef(0);
   const fovTarget = useRef(68);
 
@@ -244,8 +249,8 @@ export function Player() {
       // 시점 (터치 포함)
       const look = consumeLook();
       if (look.x || look.y) {
-        yaw.current -= look.x * 0.0032;
-        pitch.current = clamp(pitch.current - look.y * 0.0032, -PITCH_LIMIT, PITCH_LIMIT);
+        yaw.current -= look.x * TOUCH_LOOK;
+        pitch.current = clamp(pitch.current - look.y * TOUCH_LOOK, -PITCH_LIMIT, PITCH_LIMIT);
       }
       if (!frozen) keyLook(Math.min(MAX_FRAME, rawDelta));
 
@@ -305,8 +310,8 @@ export function Player() {
     /* 시점 */
     const look = consumeLook();
     if (look.x || look.y) {
-      yaw.current -= look.x * 0.0032;
-      pitch.current = clamp(pitch.current - look.y * 0.0032, -PITCH_LIMIT, PITCH_LIMIT);
+      yaw.current -= look.x * TOUCH_LOOK;
+      pitch.current = clamp(pitch.current - look.y * TOUCH_LOOK, -PITCH_LIMIT, PITCH_LIMIT);
     }
     if (!frozen) keyLook(Math.min(MAX_FRAME, rawDelta));
 

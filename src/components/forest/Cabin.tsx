@@ -24,6 +24,7 @@ import {
   PORCH_STEPS,
   porchStepTop,
   STAIRS_LOCAL as STAIRS,
+  STAIR_RAIL_OPEN,
   STAIR_HOLE_LOCAL as STAIR_HOLE,
   WINDOW_LOCAL as WINDOW,
 } from '@/lib/world';
@@ -111,9 +112,22 @@ function FrontWall({ map }: { map: THREE.Texture }) {
   const upperTop = WINDOW.top;
   return (
     <group>
-      {/* 1층: 문 양옆 */}
-      <LogWall position={[-(HALF_W + door) / 2, (F1 + lowTop) / 2, FRONT]} args={[HALF_W - door, lowTop - F1, WALL_T]} map={map} />
-      <LogWall position={[(HALF_W + door) / 2, (F1 + lowTop) / 2, FRONT]} args={[HALF_W - door, lowTop - F1, WALL_T]} map={map} />
+      {/* 1층: 문 양옆. [BUG-14] 창문 자리는 실제로 뚫어 밖이 보이게 한다(벽 하나를 창 왼쪽·오른쪽·아래·위 4조각으로) */}
+      {CABIN_WINDOWS_LOCAL.map(({ x: cx }) => {
+        const sign = Math.sign(cx);
+        const half = CABIN_WINDOW.width / 2;
+        const near = Math.abs(cx) - half; // 문 쪽 창 가장자리
+        const far = Math.abs(cx) + half; // 바깥 쪽 창 가장자리
+        const midX = sign * Math.abs(cx);
+        return (
+          <group key={cx}>
+            <LogWall position={[sign * (door + near) / 2, (F1 + lowTop) / 2, FRONT]} args={[near - door, lowTop - F1, WALL_T]} map={map} />
+            <LogWall position={[sign * (far + HALF_W) / 2, (F1 + lowTop) / 2, FRONT]} args={[HALF_W - far, lowTop - F1, WALL_T]} map={map} />
+            <LogWall position={[midX, (F1 + CABIN_WINDOW.bottom) / 2, FRONT]} args={[CABIN_WINDOW.width, CABIN_WINDOW.bottom - F1, WALL_T]} map={map} />
+            <LogWall position={[midX, (CABIN_WINDOW.top + lowTop) / 2, FRONT]} args={[CABIN_WINDOW.width, lowTop - CABIN_WINDOW.top, WALL_T]} map={map} />
+          </group>
+        );
+      })}
       {/* 문 위 인방 */}
       <LogWall position={[0, (CABIN.doorTop + lowTop) / 2, FRONT]} args={[door * 2, lowTop - CABIN.doorTop, WALL_T]} map={map} />
       {/* 2층: 창문 좌우 */}
@@ -139,8 +153,9 @@ function CabinWindows() {
   useFrame(() => {
     const night = sunState(currentKoreaClock(useClock.getState().now || Date.now())).night;
     for (const material of glassMaterials.current) {
-      // [FEAT-09] 밤에 더 밝게(0.2 + night × 1.8) 해서 실내 빛이 창밖으로 새어 보이게 한다.
-      if (material) material.emissiveIntensity = 0.2 + night * 1.8;
+      // [FEAT-09] 밤에 더 밝게 해서 실내 빛이 창밖으로 새어 보이게 한다.
+      // [BUG-14] 낮에는 발광 0(맑은 유리), 밤에만 night × 1.8.
+      if (material) material.emissiveIntensity = night * 1.8;
     }
   });
 
@@ -150,7 +165,6 @@ function CabinWindows() {
   const innerW = width - WINDOW_FRAME * 2;
   const innerH = height - WINDOW_FRAME * 2;
   const frameZ = WALL_T / 2 + WINDOW_FRAME_DEPTH / 2 - 0.01;
-  const glassZ = WALL_T / 2 + 0.01;
 
   return (
     <group>
@@ -180,22 +194,25 @@ function CabinWindows() {
                 <boxGeometry args={[innerW, WINDOW_FRAME * 0.6, WINDOW_FRAME_DEPTH * 0.8]} />
                 <meshStandardMaterial color="#6d4f36" roughness={1} />
               </mesh>
-              {/* 유리판 */}
-              <mesh position={[0, 0, FRONT + side * glassZ]}>
-                <boxGeometry args={[innerW, innerH, 0.012]} />
-                <meshStandardMaterial
-                  ref={(material) => {
-                    if (material) glassMaterials.current[index * 2 + (side > 0 ? 0 : 1)] = material;
-                  }}
-                  color="#8fb6cf"
-                  emissive="#ffcf8a"
-                  emissiveIntensity={0.2}
-                  transparent
-                  opacity={0.55}
-                  roughness={0.35}
-                  metalness={0.1}
-                />
-              </mesh>
+              {/* 유리판: [BUG-14] 뚫린 창 가운데(벽 두께 가운데)에 한 장만, 거의 투명하게 */}
+              {side > 0 && (
+                <mesh position={[0, 0, FRONT]}>
+                  <boxGeometry args={[innerW, innerH, 0.012]} />
+                  <meshStandardMaterial
+                    ref={(material) => {
+                      if (material) glassMaterials.current[index] = material;
+                    }}
+                    color="#cfe4f0"
+                    emissive="#ffcf8a"
+                    emissiveIntensity={0}
+                    transparent
+                    opacity={0.18}
+                    depthWrite={false}
+                    roughness={0.1}
+                    metalness={0.05}
+                  />
+                </mesh>
+              )}
             </group>
           ))}
         </group>
@@ -243,7 +260,8 @@ function BigWindow() {
   // [FEAT-09] 밤에 2층 큰 창의 유리가 따뜻하게 빛나 실내 빛이 밖으로 새어 보이게 한다.
   useFrame(() => {
     const night = sunState(currentKoreaClock(useClock.getState().now || Date.now())).night;
-    if (glassMaterial.current) glassMaterial.current.emissiveIntensity = 0.1 + night * 1.2;
+    // [BUG-14] 낮에는 맑은 유리(발광 0), 밤에만 실내 빛이 새는 느낌
+    if (glassMaterial.current) glassMaterial.current.emissiveIntensity = night * 1.2;
   });
 
   return (
@@ -646,7 +664,8 @@ function Stairs() {
         );
       })}
       {/* 난간 기둥 */}
-      {[0, 0.35, 0.7, 1].map((t) => {
+      {/* [BUG-13] 계단 아래 STAIR_RAIL_OPEN 만큼은 난간을 비워 서쪽에서 오를 수 있게 한다 */}
+      {[STAIR_RAIL_OPEN, 0.5, 0.75, 1].map((t) => {
         const z = STAIRS.zBottom - (STAIRS.zBottom - STAIRS.zTop) * t;
         const y = STAIRS.yBottom + (STAIRS.yTop - STAIRS.yBottom) * t;
         return (
@@ -660,13 +679,13 @@ function Stairs() {
       <mesh
         position={[
           STAIRS.x0 + 0.03,
-          (STAIRS.yBottom + STAIRS.yTop) / 2 + 0.98,
-          (STAIRS.zBottom + STAIRS.zTop) / 2,
+          STAIRS.yBottom + (STAIRS.yTop - STAIRS.yBottom) * ((1 + STAIR_RAIL_OPEN) / 2) + 0.98,
+          STAIRS.zBottom - (STAIRS.zBottom - STAIRS.zTop) * ((1 + STAIR_RAIL_OPEN) / 2),
         ]}
         rotation-x={Math.atan2(STAIRS.yTop - STAIRS.yBottom, STAIRS.zBottom - STAIRS.zTop)}
         castShadow
       >
-        <cylinderGeometry args={[0.05, 0.05, Math.hypot(STAIRS.zBottom - STAIRS.zTop, STAIRS.yTop - STAIRS.yBottom), 6]} />
+        <cylinderGeometry args={[0.05, 0.05, Math.hypot(STAIRS.zBottom - STAIRS.zTop, STAIRS.yTop - STAIRS.yBottom) * (1 - STAIR_RAIL_OPEN), 6]} />
         <meshStandardMaterial color="#5b422c" roughness={0.9} />
       </mesh>
     </group>
@@ -1279,7 +1298,8 @@ function StringLights() {
         const t = (i + 0.5) / string.count;
         out.push({
           x: string.x0 + (string.x1 - string.x0) * t,
-          y: string.y - string.sag * Math.sin(Math.PI * t),
+          // [FEAT-18] yEnd 가 있으면 기울어진 줄(계단)
+          y: string.y + ((string.yEnd ?? string.y) - string.y) * t - string.sag * Math.sin(Math.PI * t),
           z: string.z0 + (string.z1 - string.z0) * t,
         });
       }
@@ -1297,7 +1317,7 @@ function StringLights() {
           points.push(
             new THREE.Vector3(
               string.x0 + (string.x1 - string.x0) * t,
-              string.y - string.sag * Math.sin(Math.PI * t),
+              string.y + ((string.yEnd ?? string.y) - string.y) * t - string.sag * Math.sin(Math.PI * t),
               string.z0 + (string.z1 - string.z0) * t,
             ),
           );
@@ -1361,6 +1381,14 @@ function CabinLights() {
       {/* [FEAT-09] 실내 기본 불빛을 약 2배로 올리고, 1층 펜던트 전구 자리에서 나오게 옮긴다. */}
       <pointLight position={[0, F2 - 0.55, 1]} color="#ffc58a" intensity={4.4} distance={16} decay={2} />
       <pointLight position={[2.4, F1 + 2.1, -2]} color="#ffd7a6" intensity={3.0} distance={13} decay={2} />
+      {/* [FEAT-18] 계단 가운데를 밝히는 빛 하나(계단 전구 줄과 함께) */}
+      <pointLight
+        position={[(STAIRS.x0 + STAIRS.x1) / 2, (STAIRS.yBottom + STAIRS.yTop) / 2 + 1.6, (STAIRS.zBottom + STAIRS.zTop) / 2]}
+        color="#ffd2a0"
+        intensity={2.4}
+        distance={7}
+        decay={2}
+      />
       {/* 벽난로 화광 */}
       <pointLight
         position={[FURNITURE.fireplace.x + 1.0, F1 + 0.8, FURNITURE.fireplace.z]}
