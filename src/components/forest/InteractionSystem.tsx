@@ -16,6 +16,7 @@ import {
   CLEARING,
   CLEARING_BENCHES,
   FURNITURE,
+  PICNIC,
   STUMPS,
   TRAIL_SIGNS,
   terrainHeight,
@@ -120,6 +121,26 @@ const bedSeat: Seat = {
   standZ: CABIN.z - 0.9,
 };
 
+// [FEAT-12] 오두막 서쪽 통나무 식탁의 그루터기 의자 8개. 앉으면 식탁을 바라본다.
+const picnicSeats: Seat[] = PICNIC.seats.map((seat) => {
+  const ground = terrainHeight(seat.x, seat.z);
+  const yaw = yawToward(seat.x, seat.z, PICNIC.table.x, PICNIC.table.z);
+  const away = yaw + Math.PI;
+  return {
+    id: `seat-${seat.id}`,
+    kind: 'stump',
+    label: '식탁 의자에 앉기',
+    eyeY: ground + 0.46 + 1.16,
+    feetY: ground + 0.46,
+    x: seat.x,
+    z: seat.z,
+    yaw,
+    // 의자에서 식탁 반대쪽 0.9m
+    standX: seat.x + Math.sin(away) * -0.9,
+    standZ: seat.z + Math.cos(away) * -0.9,
+  };
+});
+
 export const SEATS: Seat[] = [
   ...stumpSeats,
   ...benchSeats,
@@ -127,6 +148,7 @@ export const SEATS: Seat[] = [
   porchRockingSeat,
   windowSeat,
   bedSeat,
+  ...picnicSeats,
 ];
 
 /* ── 상호작용 지점 ─────────────────────────── */

@@ -13,6 +13,7 @@ import { Stumps, TrailSigns, DecorativeStumps } from './Stumps';
 import { NoticeBoard } from './NoticeBoard';
 import { Clearing } from './Clearing';
 import { Cabin } from './Cabin';
+import { Picnic } from './Picnic';
 import { Fireflies } from './Fireflies';
 import { Lighting } from './Lighting';
 import { Player } from './Player';
@@ -56,6 +57,7 @@ function Scene() {
       <NoticeBoard />
       <Clearing />
       <Cabin />
+      <Picnic />
       <Fireflies />
       <Player />
       <RemotePlayers />

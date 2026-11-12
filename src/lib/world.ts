@@ -349,7 +349,7 @@ export const CABIN_LOCAL = {
 /** 로컬 좌표 객체의 x·z 계열 값에 오두막 중심을 더해 월드 좌표로 바꾼다 */
 const X_KEYS = ['x', 'x0', 'x1'] as const;
 const Z_KEYS = ['z', 'z0', 'z1', 'zBottom', 'zTop', 'frontZ', 'backZ', 'porchZ'] as const;
-function cabinToWorld<T extends object>(local: T): T {
+export function cabinToWorld<T extends object>(local: T): T {
   const out = { ...local } as Record<string, unknown>;
   for (const k of X_KEYS) if (typeof out[k] === 'number') out[k] = (out[k] as number) + worldFile.cabin.x;
   for (const k of Z_KEYS) if (typeof out[k] === 'number') out[k] = (out[k] as number) + worldFile.cabin.z;
@@ -357,6 +357,10 @@ function cabinToWorld<T extends object>(local: T): T {
 }
 
 export const CABIN = cabinToWorld(CABIN_LOCAL);
+
+// [FEAT-12] 오두막 둘레의 빈터(로컬 원). 숲 생성 뒤 이 안의 나무·덤불·바위·풀을 걸러 낸다.
+// 다음 이슈(모닥불·해먹)가 원을 더할 수 있게 배열로 둔다.
+export const CABIN_YARD_CLEAR_LOCAL = [{ x: -13, z: 1, r: 6 }];
 
 export const STAIRS_LOCAL = {
   x0: 3.34,
@@ -427,6 +431,31 @@ export const CABIN_LAMPS_LOCAL = [
   { x: 9, z: 4.5 },
 ];
 export const CABIN_LAMPS = CABIN_LAMPS_LOCAL.map(cabinToWorld);
+
+// [FEAT-12] 오두막 서쪽(-x) 8인용 통나무 식탁. 월드 좌표는 cabinToWorld 로 바꾼다.
+export const PICNIC_LOCAL = {
+  table: { x: -13, z: 1, w: 1.2, d: 3.4, h: 0.78 },
+  seats: [
+    { id: 'picnic-0', side: -1, z: -1.2 },
+    { id: 'picnic-1', side: -1, z: -0.4 },
+    { id: 'picnic-2', side: -1, z: 0.4 },
+    { id: 'picnic-3', side: -1, z: 1.2 },
+    { id: 'picnic-4', side: 1, z: -1.2 },
+    { id: 'picnic-5', side: 1, z: -0.4 },
+    { id: 'picnic-6', side: 1, z: 0.4 },
+    { id: 'picnic-7', side: 1, z: 1.2 },
+  ],
+} as const;
+
+export const PICNIC = {
+  table: cabinToWorld(PICNIC_LOCAL.table),
+  seats: PICNIC_LOCAL.seats.map((seat) => ({
+    id: seat.id,
+    // 식탁 양옆(x = -13 ∓ 1.05): side -1 = 서쪽(-14.05), side 1 = 동쪽(-11.95)
+    x: CABIN.x + PICNIC_LOCAL.table.x + seat.side * 1.05,
+    z: CABIN.z + PICNIC_LOCAL.table.z + seat.z,
+  })),
+};
 
 /**
  * [FEAT-09] 실내 조명 위치(로컬 좌표).
@@ -654,7 +683,28 @@ export const BOX_COLLIDERS: BoxCollider[] = [
   ...CABIN_COLLIDERS_LOCAL.map(cabinToWorld),
   // 시작 지점 게시판
   { x0: -3.7, x1: -1.9, z0: 66.05, z1: 66.55, y0: 0, y1: 2.1, tag: 'notice' },
+  // [FEAT-12] 오두막 서쪽 통나무 식탁 상판(높이 0~0.8, 의자는 앉기 대상이라 상자 없음)
+  {
+    x0: CABIN.x + PICNIC_LOCAL.table.x - PICNIC_LOCAL.table.w / 2,
+    x1: CABIN.x + PICNIC_LOCAL.table.x + PICNIC_LOCAL.table.w / 2,
+    z0: CABIN.z + PICNIC_LOCAL.table.z - PICNIC_LOCAL.table.d / 2,
+    z1: CABIN.z + PICNIC_LOCAL.table.z + PICNIC_LOCAL.table.d / 2,
+    y0: 0,
+    y1: 0.8,
+    tag: 'picnic-table',
+  },
 ];
+
+// [FEAT-12] 오두막 둘레의 빈터 원(월드 좌표). 숲 생성 뒤 이 안의 배치를 걸러 낸다.
+const YARD_CLEARS = CABIN_YARD_CLEAR_LOCAL.map((c) => ({
+  x: CABIN.x + c.x,
+  z: CABIN.z + c.z,
+  r: c.r,
+}));
+
+function inCabinYardClear(x: number, z: number) {
+  return YARD_CLEARS.some((c) => dist2d(x, z, c.x, c.z) < c.r);
+}
 
 export type TreeCollider = { x: number; z: number; r: number };
 
@@ -744,7 +794,8 @@ function generateForest() {
   return trees;
 }
 
-export const TREES = generateForest();
+// [FEAT-12] 생성 순서·난수는 그대로 두고, 오두막 둘레 빈터 원 안의 것만 걸러 낸다.
+export const TREES = generateForest().filter((t) => !inCabinYardClear(t.x, t.z));
 export const TREE_COLLIDERS: TreeCollider[] = TREES.filter(
   (t) => Math.abs(t.x) < 80,
 ).map((t) => ({ x: t.x, z: t.z, r: (t.kind === 'pine' ? 0.26 : 0.32) * t.scale }));
@@ -761,7 +812,7 @@ function generateBushes(): Bush[] {
   }
   return out;
 }
-export const BUSHES = generateBushes();
+export const BUSHES = generateBushes().filter((b) => !inCabinYardClear(b.x, b.z));
 
 function generateRocks(): Rock[] {
   const rnd = mulberry32(991);
@@ -785,7 +836,7 @@ function generateRocks(): Rock[] {
   }
   return out;
 }
-export const ROCKS = generateRocks();
+export const ROCKS = generateRocks().filter((r) => !inCabinYardClear(r.x, r.z));
 
 function generateTufts(): Tuft[] {
   const rnd = mulberry32(404);
@@ -811,7 +862,7 @@ function generateTufts(): Tuft[] {
   }
   return out;
 }
-export const TUFTS = generateTufts();
+export const TUFTS = generateTufts().filter((t) => !inCabinYardClear(t.x, t.z));
 
 /* ───────────────────────────────────────────────
  * 6. 상호작용 지점
