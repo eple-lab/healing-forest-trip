@@ -15,7 +15,10 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import {
   CABIN as CABIN_WORLD,
+  CABIN_LAMPS_LOCAL,
   CABIN_LOCAL as CABIN,
+  CABIN_WINDOW,
+  CABIN_WINDOWS_LOCAL,
   FURNITURE_LOCAL as FURNITURE,
   PORCH_STEPS,
   porchStepTop,
@@ -24,7 +27,8 @@ import {
   WINDOW_LOCAL as WINDOW,
 } from '@/lib/world';
 import { logTexture, plankTexture, stoneTexture, plaidTexture, glowTexture } from '@/lib/textures';
-import { useGame } from '@/store/game';
+import { useClock, useGame } from '@/store/game';
+import { currentKoreaClock, sunState } from '@/lib/time';
 import { Fire } from './Fire';
 
 const HALF_W = CABIN.halfW;
@@ -117,6 +121,83 @@ function FrontWall({ map }: { map: THREE.Texture }) {
       {/* 창문 아래/위 */}
       <LogWall position={[0, (F2 + upperBottom) / 2, FRONT]} args={[WINDOW.halfW * 2, upperBottom - F2, WALL_T]} map={map} />
       <LogWall position={[0, (upperTop + TOP) / 2, FRONT]} args={[WINDOW.halfW * 2, TOP - upperTop, WALL_T]} map={map} />
+    </group>
+  );
+}
+
+const WINDOW_FRAME = 0.08;
+const WINDOW_FRAME_DEPTH = 0.07;
+
+/**
+ * [FEAT-08] 1층 앞벽 문 양옆 창문.
+ * 벽에 구멍은 내지 않고 바깥 면과 안쪽 면 양쪽에 창틀·유리를 붙인다.
+ * 유리는 밤일수록 따뜻하게 빛나며, 다음 이슈(실내 조명)에서 창밖으로 새는 빛으로 쓴다.
+ */
+function CabinWindows() {
+  const glassMaterials = useRef<THREE.MeshStandardMaterial[]>([]);
+  useFrame(() => {
+    const night = sunState(currentKoreaClock(useClock.getState().now || Date.now())).night;
+    for (const material of glassMaterials.current) {
+      if (material) material.emissiveIntensity = 0.15 + night * 1.1;
+    }
+  });
+
+  const width = CABIN_WINDOW.width;
+  const height = CABIN_WINDOW.top - CABIN_WINDOW.bottom;
+  const centerY = (CABIN_WINDOW.top + CABIN_WINDOW.bottom) / 2;
+  const innerW = width - WINDOW_FRAME * 2;
+  const innerH = height - WINDOW_FRAME * 2;
+  const frameZ = WALL_T / 2 + WINDOW_FRAME_DEPTH / 2 - 0.01;
+  const glassZ = WALL_T / 2 + 0.01;
+
+  return (
+    <group>
+      {CABIN_WINDOWS_LOCAL.map(({ x }, index) => (
+        <group key={x} position={[x, centerY, 0]}>
+          {[-1, 1].map((side) => (
+            <group key={side}>
+              {/* 테두리 */}
+              {[-1, 1].map((sx) => (
+                <mesh key={`v${sx}`} position={[sx * (width / 2 - WINDOW_FRAME / 2), 0, FRONT + side * frameZ]}>
+                  <boxGeometry args={[WINDOW_FRAME, height, WINDOW_FRAME_DEPTH]} />
+                  <meshStandardMaterial color="#5c4129" roughness={1} />
+                </mesh>
+              ))}
+              {[-1, 1].map((sy) => (
+                <mesh key={`h${sy}`} position={[0, sy * (height / 2 - WINDOW_FRAME / 2), FRONT + side * frameZ]}>
+                  <boxGeometry args={[innerW, WINDOW_FRAME, WINDOW_FRAME_DEPTH]} />
+                  <meshStandardMaterial color="#5c4129" roughness={1} />
+                </mesh>
+              ))}
+              {/* 십자 창살 */}
+              <mesh position={[0, 0, FRONT + side * frameZ]}>
+                <boxGeometry args={[WINDOW_FRAME * 0.6, innerH, WINDOW_FRAME_DEPTH * 0.8]} />
+                <meshStandardMaterial color="#6d4f36" roughness={1} />
+              </mesh>
+              <mesh position={[0, 0, FRONT + side * frameZ]}>
+                <boxGeometry args={[innerW, WINDOW_FRAME * 0.6, WINDOW_FRAME_DEPTH * 0.8]} />
+                <meshStandardMaterial color="#6d4f36" roughness={1} />
+              </mesh>
+              {/* 유리판 */}
+              <mesh position={[0, 0, FRONT + side * glassZ]}>
+                <boxGeometry args={[innerW, innerH, 0.012]} />
+                <meshStandardMaterial
+                  ref={(material) => {
+                    if (material) glassMaterials.current[index * 2 + (side > 0 ? 0 : 1)] = material;
+                  }}
+                  color="#8fb6cf"
+                  emissive="#ffcf8a"
+                  emissiveIntensity={0.15}
+                  transparent
+                  opacity={0.55}
+                  roughness={0.35}
+                  metalness={0.1}
+                />
+              </mesh>
+            </group>
+          ))}
+        </group>
+      ))}
     </group>
   );
 }
@@ -333,6 +414,94 @@ function Porch() {
           <meshStandardMaterial color="#6b6b6b" metalness={0.5} roughness={0.5} />
         </mesh>
       </group>
+    </group>
+  );
+}
+
+/**
+ * [FEAT-08] 오두막 둘레 외부등 6개.
+ * 진짜 빛(pointLight)은 앞마당 두 곳에만 두고, 나머지 넷은 발광 전구와 빛 번짐만 쓴다.
+ */
+function OutdoorLamps() {
+  const glow = useMemo(() => glowTexture(), []);
+  const bulbMaterials = useRef<THREE.MeshStandardMaterial[]>([]);
+  const glowMaterials = useRef<THREE.SpriteMaterial[]>([]);
+  const lights = useRef<THREE.PointLight[]>([]);
+
+  useFrame(() => {
+    const night = sunState(currentKoreaClock(useClock.getState().now || Date.now())).night;
+    for (const material of bulbMaterials.current) {
+      if (material) material.emissiveIntensity = 0.05 + night * 1.6;
+    }
+    for (const material of glowMaterials.current) {
+      if (material) material.opacity = night * 0.45;
+    }
+    for (const light of lights.current) {
+      if (light) light.intensity = night * 1.5;
+    }
+  });
+
+  return (
+    <group>
+      {CABIN_LAMPS_LOCAL.map(({ x, z }, index) => {
+        const withLight = index < 2;
+        return (
+          <group key={`${x},${z}`} position={[x, 0, z]}>
+            {/* 나무 기둥 */}
+            <mesh position={[0, 0.8, 0]} castShadow>
+              <cylinderGeometry args={[0.055, 0.075, 1.6, 8]} />
+              <meshStandardMaterial color="#4b3625" roughness={1} />
+            </mesh>
+            {/* 등갓 */}
+            <mesh position={[0, 1.6, 0]} castShadow>
+              <cylinderGeometry args={[0.12, 0.17, 0.1, 8]} />
+              <meshStandardMaterial color="#2f261c" roughness={0.8} metalness={0.2} />
+            </mesh>
+            {/* 발광 전구 */}
+            <mesh position={[0, 1.71, 0]}>
+              <boxGeometry args={[0.16, 0.2, 0.16]} />
+              <meshStandardMaterial
+                ref={(material) => {
+                  if (material) bulbMaterials.current[index] = material;
+                }}
+                color="#ffd39a"
+                emissive="#ffb066"
+                emissiveIntensity={0.05}
+                transparent
+                opacity={0.9}
+              />
+            </mesh>
+            {/* 빛 번짐 */}
+            <sprite position={[0, 1.71, 0]} scale={[1.5, 1.5, 1]}>
+              <spriteMaterial
+                ref={(material) => {
+                  if (material) glowMaterials.current[index] = material;
+                }}
+                map={glow}
+                color="#ffb877"
+                transparent
+                opacity={0}
+                blending={THREE.AdditiveBlending}
+                depthWrite={false}
+                toneMapped={false}
+              />
+            </sprite>
+            {/* 앞마당 두 곳만 진짜 빛 */}
+            {withLight && (
+              <pointLight
+                ref={(light) => {
+                  if (light) lights.current[index] = light;
+                }}
+                position={[0, 1.71, 0]}
+                color="#ffbd7d"
+                intensity={0}
+                distance={7}
+                decay={2}
+              />
+            )}
+          </group>
+        );
+      })}
     </group>
   );
 }
@@ -609,8 +778,18 @@ function Fireplace() {
   );
 }
 
-function RockingChair() {
-  const { x, z, facing } = FURNITURE.rockingChair;
+// [FEAT-08] 현관 데크에서도 같은 모양을 쓸 수 있도록 위치·방향을 props 로 받는다.
+function RockingChair({
+  x = FURNITURE.rockingChair.x,
+  z = FURNITURE.rockingChair.z,
+  facing = FURNITURE.rockingChair.facing,
+  withTable = true,
+}: {
+  x?: number;
+  z?: number;
+  facing?: number;
+  withTable?: boolean;
+} = {}) {
   const seatY = F1 + 0.46;
   return (
     <group position={[x, F1, z]} rotation-y={facing}>
@@ -665,7 +844,7 @@ function RockingChair() {
         <meshStandardMaterial color="#a5624b" roughness={0.95} />
       </mesh>
       {/* 곁에 놓인 무릎담요 테이블 */}
-      <BlanketTable />
+      {withTable && <BlanketTable />}
       {/* 발판 */}
       <mesh position={[0, 0.12, -0.55]} castShadow receiveShadow>
         <boxGeometry args={[0.5, 0.12, 0.32]} />
@@ -1032,13 +1211,17 @@ export function Cabin() {
   return (
     <group position={[CABIN_WORLD.x, 0, CABIN_WORLD.z]}>
       <FrontWall map={texture} />
+      <CabinWindows />
       <InteriorWalls />
       <DoorFrame />
       <Roof />
       <Porch />
+      <OutdoorLamps />
       <BigWindow />
       <Fireplace />
       <RockingChair />
+      {/* [FEAT-08] 현관 데크 흔들의자 (담요 테이블 없이) */}
+      <RockingChair {...FURNITURE.porchRocking} withTable={false} />
       <Kitchen />
       <Bedroom />
       <CabinLights />

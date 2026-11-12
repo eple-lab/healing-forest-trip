@@ -80,6 +80,20 @@ const rockingSeat: Seat = {
   standZ: FURNITURE.rockingChair.z,
 };
 
+// [FEAT-08] 현관 데크 흔들의자. 일어날 자리는 의자 앞(+z)이 아니라 서쪽(-x) 0.9m 데크 위.
+const porchRockingSeat: Seat = {
+  id: 'seat-porch-rocking',
+  kind: 'chair',
+  label: '데크 흔들의자에 앉기',
+  eyeY: CABIN.floor1 + 1.17,
+  feetY: CABIN.floor1,
+  x: FURNITURE.porchRocking.x,
+  z: FURNITURE.porchRocking.z,
+  yaw: FURNITURE.porchRocking.facing,
+  standX: FURNITURE.porchRocking.x - 0.9,
+  standZ: FURNITURE.porchRocking.z,
+};
+
 const windowSeat: Seat = {
   id: 'seat-window',
   kind: 'window',
@@ -110,6 +124,7 @@ export const SEATS: Seat[] = [
   ...stumpSeats,
   ...benchSeats,
   rockingSeat,
+  porchRockingSeat,
   windowSeat,
   bedSeat,
 ];

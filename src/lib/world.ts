@@ -391,6 +391,8 @@ export const FURNITURE_LOCAL = {
   bed: { x: -2.6, z: -2.85, w: 2.05, d: 2.25 },
   windowSeat: { x: 0.2, z: 4.35, w: 2.6, d: 0.7 },
   rug: { x: -2.3, z: 0.6 },
+  // [FEAT-08] 현관 데크 흔들의자. facing = π 는 남쪽(+z)을 바라보는 값(docs/21-directions.md).
+  porchRocking: { x: 2.4, z: 6.5, facing: Math.PI },
 };
 export const FURNITURE = Object.fromEntries(
   Object.entries(FURNITURE_LOCAL).map(([k, v]) => [k, cabinToWorld(v)]),
@@ -403,6 +405,28 @@ export const WINDOW_LOCAL = {
   z: CABIN_LOCAL.frontZ,
 };
 export const WINDOW = cabinToWorld(WINDOW_LOCAL);
+
+/**
+ * [FEAT-08] 1층 앞벽 문 양옆 창문. 벽에 구멍은 내지 않고 바깥·안쪽 면에 창틀만 붙인다.
+ * y 는 1층 바닥(floor1)에서 0.95m ~ 2.05m.
+ */
+export const CABIN_WINDOWS_LOCAL = [{ x: -2.6 }, { x: 2.6 }];
+export const CABIN_WINDOW = {
+  width: 1.3,
+  bottom: CABIN_LOCAL.floor1 + 0.95,
+  top: CABIN_LOCAL.floor1 + 2.05,
+};
+
+/** [FEAT-08] 오두막 둘레 외부등 6개(로컬 좌표). 앞마당 두 곳만 진짜 빛을 쓴다. */
+export const CABIN_LAMPS_LOCAL = [
+  { x: -3.2, z: 11 },
+  { x: 3.2, z: 11 },
+  { x: -7.5, z: 3 },
+  { x: -7.5, z: -4 },
+  { x: 9, z: -3 },
+  { x: 9, z: 4.5 },
+];
+export const CABIN_LAMPS = CABIN_LAMPS_LOCAL.map(cabinToWorld);
 
 /**
  * [BUG-10] 현관 데크 앞 계단. 데크 바깥쪽(남쪽 +z)으로 run 간격마다 한 칸씩 내려간다.
@@ -554,6 +578,17 @@ const CABIN_COLLIDERS_LOCAL: BoxCollider[] = [
   { x0: -3.65, x1: -1.55, z0: -4.0, z1: -1.7, y0: 3.42, y1: 4.3, tag: 'bed' },
   { x0: -1.1, x1: 1.5, z0: 4.0, z1: 4.7, y0: 3.42, y1: 4.0, tag: 'seat' },
   { x0: 5.6, x1: 7.4, z0: 0.5, z1: 2.3, y0: 0, y1: 1.6, tag: 'woodpile' },
+  // [FEAT-08] 현관 데크 흔들의자(실내 의자와 같은 크기)와 외부등 기둥.
+  { x0: 2.0, x1: 2.8, z0: 6.1, z1: 6.9, y0: 0.32, y1: 1.3, tag: 'chair' },
+  ...CABIN_LAMPS_LOCAL.map((lamp) => ({
+    x0: lamp.x - 0.12,
+    x1: lamp.x + 0.12,
+    z0: lamp.z - 0.12,
+    z1: lamp.z + 0.12,
+    y0: 0,
+    y1: 1.7,
+    tag: 'lamp',
+  })),
   // 2층 난간
   { x0: 3.2, x1: 3.32, z0: 0.55, z1: 5.25, y0: 3.42, y1: 4.45, tag: 'rail' },
 ];
