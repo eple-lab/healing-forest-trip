@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { signOut } from 'next-auth/react';
 import { useClock, useGame } from '@/store/game';
 import { currentKoreaClock, timeGreeting } from '@/lib/time';
 import { interactionBus } from '@/lib/interaction-bus';
@@ -24,6 +25,15 @@ function IconHelp() {
       <circle cx="12" cy="12" r="8.4" fill="none" stroke="currentColor" strokeWidth="1.7" />
       <path d="M9.6 9.4c0-1.4 1.1-2.3 2.5-2.3 1.5 0 2.5.9 2.5 2.2 0 1.1-.6 1.6-1.6 2.2-.8.5-1 .9-1 1.6v.5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
       <circle cx="12" cy="17" r="1" fill="currentColor" />
+    </svg>
+  );
+}
+/** [FEAT-16] 나가기: 문 밖으로 나가는 화살표 */
+function IconExit() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M13.5 5.2H7.2a1.4 1.4 0 0 0-1.4 1.4v10.8a1.4 1.4 0 0 0 1.4 1.4h6.3" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      <path d="M11 12h8.2M16.2 8.8l3.2 3.2-3.2 3.2" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -141,6 +151,16 @@ export function HUD() {
             title="도움말 (H)"
           >
             <IconHelp />
+          </button>
+          {/* [FEAT-16] 도움말 창을 열지 않아도 바로 나갈 수 있게 물음표 옆에 둔다(도움말 창의 로그아웃과 같은 동작) */}
+          <button
+            type="button"
+            className="icon-btn"
+            onClick={() => signOut({ callbackUrl: '/' })}
+            aria-label="나가기"
+            title="나가기"
+          >
+            <IconExit />
           </button>
         </div>
       </header>
