@@ -10,12 +10,13 @@
  * 이 파일 안의 위치 숫자는 모두 오두막 기준이다.
  */
 
-import { useMemo, useRef } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import {
   CABIN as CABIN_WORLD,
   CABIN_LAMPS_LOCAL,
+  CABIN_LIGHTS_LOCAL,
   CABIN_LOCAL as CABIN,
   CABIN_WINDOW,
   CABIN_WINDOWS_LOCAL,
@@ -138,7 +139,8 @@ function CabinWindows() {
   useFrame(() => {
     const night = sunState(currentKoreaClock(useClock.getState().now || Date.now())).night;
     for (const material of glassMaterials.current) {
-      if (material) material.emissiveIntensity = 0.15 + night * 1.1;
+      // [FEAT-09] 밤에 더 밝게(0.2 + night × 1.8) 해서 실내 빛이 창밖으로 새어 보이게 한다.
+      if (material) material.emissiveIntensity = 0.2 + night * 1.8;
     }
   });
 
@@ -187,7 +189,7 @@ function CabinWindows() {
                   }}
                   color="#8fb6cf"
                   emissive="#ffcf8a"
-                  emissiveIntensity={0.15}
+                  emissiveIntensity={0.2}
                   transparent
                   opacity={0.55}
                   roughness={0.35}
@@ -233,9 +235,16 @@ function DoorFrame() {
 
 function BigWindow() {
   const glass = useRef<THREE.Mesh>(null);
+  const glassMaterial = useRef<THREE.MeshPhysicalMaterial>(null);
   const width = WINDOW.halfW * 2;
   const height = WINDOW.top - WINDOW.bottom;
   const centerY = (WINDOW.bottom + WINDOW.top) / 2;
+
+  // [FEAT-09] 밤에 2층 큰 창의 유리가 따뜻하게 빛나 실내 빛이 밖으로 새어 보이게 한다.
+  useFrame(() => {
+    const night = sunState(currentKoreaClock(useClock.getState().now || Date.now())).night;
+    if (glassMaterial.current) glassMaterial.current.emissiveIntensity = 0.1 + night * 1.2;
+  });
 
   return (
     <group position={[0, 0, WINDOW.z]}>
@@ -267,7 +276,10 @@ function BigWindow() {
       <mesh ref={glass} position={[0, centerY, 0.015]}>
         <planeGeometry args={[width, height]} />
         <meshPhysicalMaterial
+          ref={glassMaterial}
           color="#cfe0e6"
+          emissive="#ffcf8a"
+          emissiveIntensity={0.1}
           transparent
           opacity={0.16}
           roughness={0.05}
@@ -1135,13 +1147,220 @@ function WindowSeat() {
   );
 }
 
+/**
+ * [FEAT-09] 천장 펜던트 2개. 1층 펜던트 전구 자리(0, F2-0.55, 1)에서 CabinLights 의 기본 빛이 나오고,
+ * 2층 펜던트에만 새 pointLight 1개를 둔다(성능 제한: 이번에 추가하는 유일한 진짜 빛).
+ */
+function PendantLight({
+  position,
+  withLight = false,
+}: {
+  position: [number, number, number];
+  withLight?: boolean;
+}) {
+  return (
+    <group position={position}>
+      {/* 줄 0.35m */}
+      <mesh position={[0, -0.175, 0]}>
+        <cylinderGeometry args={[0.012, 0.012, 0.35, 6]} />
+        <meshStandardMaterial color="#3a2c1f" roughness={1} />
+      </mesh>
+      {/* 등갓 */}
+      <mesh position={[0, -0.32, 0]}>
+        <coneGeometry args={[0.2, 0.16, 12, 1, true]} />
+        <meshStandardMaterial color="#2f261c" roughness={0.8} metalness={0.2} side={THREE.DoubleSide} />
+      </mesh>
+      {/* 발광 전구 */}
+      <mesh position={[0, -0.4, 0]}>
+        <sphereGeometry args={[0.09, 10, 8]} />
+        <meshStandardMaterial color="#ffd9a8" emissive="#ffcf8a" emissiveIntensity={1.6} toneMapped={false} />
+      </mesh>
+      {withLight && (
+        <pointLight
+          position={[0, -0.4, 0]}
+          color="#ffd2a0"
+          intensity={3.0}
+          distance={11}
+          decay={2}
+        />
+      )}
+    </group>
+  );
+}
+
+function CeilingPendants() {
+  const [first, second] = CABIN_LIGHTS_LOCAL.pendants;
+  return (
+    <group>
+      <PendantLight position={[first.x, first.y, first.z]} />
+      <PendantLight position={[second.x, second.y, second.z]} withLight />
+    </group>
+  );
+}
+
+/**
+ * [FEAT-09] 1층 바닥 스탠드 2개. 빛은 쓰지 않고 발광 갓과 번짐 스프라이트만 쓴다.
+ */
+function FloorLamps() {
+  const glow = useMemo(() => glowTexture(), []);
+  const shadeMaterials = useRef<THREE.MeshStandardMaterial[]>([]);
+  const glowMaterials = useRef<THREE.SpriteMaterial[]>([]);
+
+  useFrame(() => {
+    const night = sunState(currentKoreaClock(useClock.getState().now || Date.now())).night;
+    for (const material of shadeMaterials.current) {
+      if (material) material.emissiveIntensity = 0.6 + night * 1.0;
+    }
+    for (const material of glowMaterials.current) {
+      if (material) material.opacity = night * 0.5;
+    }
+  });
+
+  return (
+    <group>
+      {CABIN_LIGHTS_LOCAL.floorLamps.map(({ x, z }, index) => (
+        <group key={`${x},${z}`} position={[x, F1, z]}>
+          {/* 밑판 */}
+          <mesh position={[0, 0.03, 0]} castShadow>
+            <cylinderGeometry args={[0.2, 0.24, 0.06, 12]} />
+            <meshStandardMaterial color="#4b3625" roughness={1} />
+          </mesh>
+          {/* 1.45m 가는 기둥 */}
+          <mesh position={[0, 0.75, 0]} castShadow>
+            <cylinderGeometry args={[0.022, 0.03, 1.45, 8]} />
+            <meshStandardMaterial color="#4b3625" roughness={1} />
+          </mesh>
+          {/* 원통 갓 (발광) */}
+          <mesh position={[0, 1.5, 0]}>
+            <cylinderGeometry args={[0.15, 0.19, 0.3, 14, 1, true]} />
+            <meshStandardMaterial
+              ref={(material) => {
+                if (material) shadeMaterials.current[index] = material;
+              }}
+              color="#ffd9a8"
+              emissive="#ffd9a8"
+              emissiveIntensity={0.6}
+              side={THREE.DoubleSide}
+              toneMapped={false}
+            />
+          </mesh>
+          {/* 빛 번짐 */}
+          <sprite position={[0, 1.5, 0]} scale={[1.9, 1.9, 1]}>
+            <spriteMaterial
+              ref={(material) => {
+                if (material) glowMaterials.current[index] = material;
+              }}
+              map={glow}
+              color="#ffd9a8"
+              transparent
+              opacity={0}
+              blending={THREE.AdditiveBlending}
+              depthWrite={false}
+              toneMapped={false}
+            />
+          </sprite>
+        </group>
+      ))}
+    </group>
+  );
+}
+
+/**
+ * [FEAT-09] 알전구 줄 3개. 전구 36개는 InstancedMesh 하나로 묶고, 밤에만 밝아진다.
+ */
+function StringLights() {
+  const mesh = useRef<THREE.InstancedMesh>(null);
+  const bulbMaterial = useRef<THREE.MeshStandardMaterial>(null);
+
+  const bulbs = useMemo(() => {
+    const out: { x: number; y: number; z: number }[] = [];
+    for (const string of CABIN_LIGHTS_LOCAL.strings) {
+      for (let i = 0; i < string.count; i++) {
+        const t = (i + 0.5) / string.count;
+        out.push({
+          x: string.x0 + (string.x1 - string.x0) * t,
+          y: string.y - string.sag * Math.sin(Math.PI * t),
+          z: string.z0 + (string.z1 - string.z0) * t,
+        });
+      }
+    }
+    return out;
+  }, []);
+
+  const wires = useMemo(
+    () =>
+      CABIN_LIGHTS_LOCAL.strings.map((string) => {
+        const points: THREE.Vector3[] = [];
+        const steps = 24;
+        for (let i = 0; i <= steps; i++) {
+          const t = i / steps;
+          points.push(
+            new THREE.Vector3(
+              string.x0 + (string.x1 - string.x0) * t,
+              string.y - string.sag * Math.sin(Math.PI * t),
+              string.z0 + (string.z1 - string.z0) * t,
+            ),
+          );
+        }
+        return new THREE.Line(
+          new THREE.BufferGeometry().setFromPoints(points),
+          new THREE.LineBasicMaterial({ color: '#3a2c1f' }),
+        );
+      }),
+    [],
+  );
+
+  useEffect(
+    () => () => {
+      for (const line of wires) {
+        line.geometry.dispose();
+        (line.material as THREE.Material).dispose();
+      }
+    },
+    [wires],
+  );
+
+  useLayoutEffect(() => {
+    const dummy = new THREE.Object3D();
+    bulbs.forEach((bulb, index) => {
+      dummy.position.set(bulb.x, bulb.y, bulb.z);
+      dummy.updateMatrix();
+      mesh.current?.setMatrixAt(index, dummy.matrix);
+    });
+    if (mesh.current) mesh.current.instanceMatrix.needsUpdate = true;
+  }, [bulbs]);
+
+  useFrame(() => {
+    const night = sunState(currentKoreaClock(useClock.getState().now || Date.now())).night;
+    if (bulbMaterial.current) bulbMaterial.current.emissiveIntensity = 0.6 + night * 1.4;
+  });
+
+  return (
+    <group>
+      {wires.map((line, index) => (
+        <primitive key={index} object={line} />
+      ))}
+      <instancedMesh ref={mesh} args={[undefined, undefined, bulbs.length]} frustumCulled={false}>
+        <sphereGeometry args={[0.05, 8, 6]} />
+        <meshStandardMaterial
+          ref={bulbMaterial}
+          color="#ffd58a"
+          emissive="#ffd58a"
+          emissiveIntensity={0.6}
+          toneMapped={false}
+        />
+      </instancedMesh>
+    </group>
+  );
+}
+
 function CabinLights() {
   const fire = useGame((s) => s.fire);
   return (
     <group>
-      {/* 실내 기본 불빛 */}
-      <pointLight position={[0, F2 - 0.4, 1]} color="#ffc58a" intensity={2.2} distance={14} decay={2} />
-      <pointLight position={[2.4, F1 + 2.1, -2]} color="#ffd7a6" intensity={1.5} distance={11} decay={2} />
+      {/* [FEAT-09] 실내 기본 불빛을 약 2배로 올리고, 1층 펜던트 전구 자리에서 나오게 옮긴다. */}
+      <pointLight position={[0, F2 - 0.55, 1]} color="#ffc58a" intensity={4.4} distance={16} decay={2} />
+      <pointLight position={[2.4, F1 + 2.1, -2]} color="#ffd7a6" intensity={3.0} distance={13} decay={2} />
       {/* 벽난로 화광 */}
       <pointLight
         position={[FURNITURE.fireplace.x + 1.0, F1 + 0.8, FURNITURE.fireplace.z]}
@@ -1225,6 +1444,10 @@ export function Cabin() {
       <Kitchen />
       <Bedroom />
       <CabinLights />
+      {/* [FEAT-09] 천장 펜던트·바닥 스탠드·알전구 줄 */}
+      <CeilingPendants />
+      <FloorLamps />
+      <StringLights />
       <ChimneySmoke />
       {/* 창가 화분 */}
       <group position={[-3.6, F1 + 0.34, FRONT - 0.5]}>

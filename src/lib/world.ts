@@ -429,6 +429,52 @@ export const CABIN_LAMPS_LOCAL = [
 export const CABIN_LAMPS = CABIN_LAMPS_LOCAL.map(cabinToWorld);
 
 /**
+ * [FEAT-09] 실내 조명 위치(로컬 좌표).
+ *  - pendants: 천장 펜던트 2개. 1층 전구 자리는 기존 기본 빛(pointLight)이 나오는 곳이다.
+ *  - floorLamps: 바닥 스탠드 2개. 발광 재질·번짐만 쓰고, 작은 충돌 상자는 CABIN_COLLIDERS_LOCAL 에 둔다.
+ *  - strings: 알전구 줄 3개. 양 끝 좌표(x0,z0 → x1,z1)와 높이·가운데 처짐(sag)·전구 개수.
+ */
+export const CABIN_LIGHTS_LOCAL = {
+  pendants: [
+    { x: 0, y: CABIN_LOCAL.floor2 - 0.15, z: 1 },
+    { x: -1, y: CABIN_LOCAL.wallTop - 0.7, z: -1.5 },
+  ],
+  floorLamps: [
+    { x: -4.3, z: 3.8 },
+    { x: 4.3, z: -4.2 },
+  ],
+  strings: [
+    {
+      x0: -2.2,
+      z0: 4.3,
+      x1: -2.2,
+      z1: -4.3,
+      y: CABIN_LOCAL.floor2 - 0.25,
+      sag: 0.25,
+      count: 12,
+    },
+    {
+      x0: 1.6,
+      z0: 4.3,
+      x1: 1.6,
+      z1: -4.3,
+      y: CABIN_LOCAL.floor2 - 0.25,
+      sag: 0.25,
+      count: 12,
+    },
+    {
+      x0: -3.3,
+      z0: CABIN_LOCAL.porchZ - 0.3,
+      x1: 3.3,
+      z1: CABIN_LOCAL.porchZ - 0.3,
+      y: 3.0,
+      sag: 0.2,
+      count: 12,
+    },
+  ],
+};
+
+/**
  * [BUG-10] 현관 데크 앞 계단. 데크 바깥쪽(남쪽 +z)으로 run 간격마다 한 칸씩 내려간다.
  * Cabin.tsx(모양)와 groundAt(밟는 높이)이 같은 값을 쓴다.
  */
@@ -587,6 +633,16 @@ const CABIN_COLLIDERS_LOCAL: BoxCollider[] = [
     z1: lamp.z + 0.12,
     y0: 0,
     y1: 1.7,
+    tag: 'lamp',
+  })),
+  // [FEAT-09] 바닥 스탠드 2개. 빛은 없지만 지나갈 수 없게 작은 상자를 둔다(0.36×0.36, 높이 1.5).
+  ...CABIN_LIGHTS_LOCAL.floorLamps.map((lamp) => ({
+    x0: lamp.x - 0.18,
+    x1: lamp.x + 0.18,
+    z0: lamp.z - 0.18,
+    z1: lamp.z + 0.18,
+    y0: CABIN_LOCAL.floor1,
+    y1: CABIN_LOCAL.floor1 + 1.5,
     tag: 'lamp',
   })),
   // 2층 난간
